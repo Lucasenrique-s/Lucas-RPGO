@@ -256,7 +256,7 @@ export function PericiasTab({
       text: `Remover "${c.nome}"?`,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#d33",
+      confirmButtonColor: "var(--danger)",
       confirmButtonText: "Apagar",
       cancelButtonText: "Cancelar",
       background: "var(--bg-card)",
@@ -312,7 +312,7 @@ export function PericiasTab({
 
       <section>
         <div className="section-header">
-          <i className="fas fa-shield-alt" style={{ color: "var(--color-react)" }} />
+          <i className="fas fa-shield-alt" style={{ color: "var(--color-defesa)" }} />
           <h3>Salvaguardas</h3>
         </div>
         <div className="prof-grid">
@@ -495,7 +495,7 @@ export function PericiasTab({
 
       <section>
         <div className="section-header">
-          <i className="fas fa-pen-ruler" style={{ color: "var(--color-power)" }} />
+          <i className="fas fa-pen-ruler" style={{ color: "var(--accent)" }} />
           <h3>Perícias Customizadas</h3>
           <button
             type="button"

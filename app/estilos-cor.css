@@ -449,10 +449,8 @@
 }
 
 .seletor-cor-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 60;
+  position: fixed;
+  z-index: 1100; /* acima do .modal-overlay (1000) */
   width: 224px;
   padding: 10px;
   display: flex;
@@ -524,7 +522,7 @@
   flex-shrink: 0;
 }
 
-.seletor-cor .seletor-cor-hex {
+.seletor-cor-popover .seletor-cor-hex {
   flex: 1;
   min-width: 0;
   width: auto;
@@ -539,7 +537,7 @@
   border-radius: 6px;
 }
 
-.seletor-cor .seletor-cor-hex:focus {
+.seletor-cor-popover .seletor-cor-hex:focus {
   outline: none;
   border-color: var(--primary);
 }
@@ -549,10 +547,36 @@
   border-radius: 6px;
   border: none;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.seletor-cor-amostras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.seletor-cor-amostra {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+
+.seletor-cor-amostra:hover {
+  transform: scale(1.15);
+}
+
+.seletor-cor-amostra.ativo {
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--text-main);
 }
 
 .cor-swatches {

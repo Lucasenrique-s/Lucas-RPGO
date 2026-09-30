@@ -770,7 +770,7 @@ export function PerfilSidebar({
           );
         return (
           <>
-            <div className="bar-label" style={{ marginTop: 15, color: "var(--color-react)" }}>
+            <div className="bar-label" style={{ marginTop: 15, color: "var(--color-defesa)" }}>
               DEFESAS
             </div>
             <div className="defesas-secao">
@@ -801,7 +801,7 @@ export function PerfilSidebar({
         if (!sentidos.length) return null;
         return (
           <>
-            <div className="bar-label" style={{ marginTop: 15, color: "var(--color-react)" }}>
+            <div className="bar-label" style={{ marginTop: 15, color: "var(--color-defesa)" }}>
               SENTIDOS
             </div>
             <div className="defesas-secao">
@@ -828,7 +828,7 @@ export function PerfilSidebar({
         );
       })()}
 
-      <div className="bar-label" style={{ marginTop: 15, color: "var(--color-power)" }}>
+      <div className="bar-label" style={{ marginTop: 15, color: "var(--accent)" }}>
         ATRIBUTOS
       </div>
       <div className="attr-grid">

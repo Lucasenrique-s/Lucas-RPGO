@@ -107,15 +107,15 @@ export type EfeitoAcao =
 export type CondicaoEfeito = Extract<EfeitoAcao, { tipo: "condicao" }>;
 
 export const META_EFEITO_ACAO: Record<EfeitoAcaoTipo, { nome: string; icone: string; cor: string }> = {
-  ataque: { nome: "Ataque", icone: "fa-hand-fist", cor: "#e05555" },
-  salvaguarda: { nome: "Salvaguarda", icone: "fa-burst", cor: "#e0a555" },
-  dano: { nome: "Dano", icone: "fa-heart-crack", cor: "#c0392b" },
-  area: { nome: "Área", icone: "fa-circle-notch", cor: "#5a8fe0" },
-  movimento: { nome: "Movimento", icone: "fa-person-running", cor: "#6fbf6f" },
-  bonus_numerico: { nome: "Bônus Numérico", icone: "fa-plus-minus", cor: "#d4c445" },
-  cura: { nome: "Recuperar Vida", icone: "fa-heart", cor: "#27ae60" },
-  condicao: { nome: "Condição", icone: "fa-triangle-exclamation", cor: "#a06fe0" },
-  livre: { nome: "Livre", icone: "fa-feather", cor: "#8a8a8a" },
+  ataque: { nome: "Ataque", icone: "fa-hand-fist", cor: "var(--danger)" },
+  salvaguarda: { nome: "Salvaguarda", icone: "fa-burst", cor: "var(--warning)" },
+  dano: { nome: "Dano", icone: "fa-heart-crack", cor: "var(--bar-hp)" },
+  area: { nome: "Área", icone: "fa-circle-notch", cor: "var(--info)" },
+  movimento: { nome: "Movimento", icone: "fa-person-running", cor: "var(--accent)" },
+  bonus_numerico: { nome: "Bônus Numérico", icone: "fa-plus-minus", cor: "var(--highlight)" },
+  cura: { nome: "Recuperar Vida", icone: "fa-heart", cor: "var(--success)" },
+  condicao: { nome: "Condição", icone: "fa-triangle-exclamation", cor: "var(--color-livre)" },
+  livre: { nome: "Livre", icone: "fa-feather", cor: "var(--text-sec)" },
 };
 
 export function criarEfeitoAcao(tipo: EfeitoAcaoTipo): EfeitoAcao {

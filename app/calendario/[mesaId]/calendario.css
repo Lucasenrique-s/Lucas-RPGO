@@ -274,21 +274,21 @@
 }
 
 .cal-chip-tint-estacao {
-  border-left-color: var(--color-react);
+  border-left-color: var(--success);
 }
 .cal-chip-tint-estacao .cal-chip-main {
-  color: var(--color-react);
+  color: var(--success);
 }
 
 .cal-chip-tint-lua {
-  border-left-color: var(--color-bonus);
+  border-left-color: var(--highlight);
 }
 
 .cal-chip-tint-clima {
-  border-left-color: var(--color-padrao);
+  border-left-color: var(--info);
 }
 .cal-chip-tint-clima .cal-chip-main {
-  color: var(--color-padrao);
+  color: var(--info);
 }
 
 /* Tracejado fixo: no toque não há hover pra indicar que é editável. */
@@ -305,9 +305,9 @@
 /* ─── Grade mensal ─────────────────────────────────────────── */
 
 .calendario-grid-wrapper {
-  --cal-cor-clima: var(--color-padrao);
+  --cal-cor-clima: var(--info);
   --cal-cor-narrativo: var(--color-livre);
-  --cal-cor-objetivo: var(--color-power);
+  --cal-cor-objetivo: var(--accent);
   gap: 12px;
 }
 
@@ -567,9 +567,9 @@
 
 .cal-eventos-card,
 .cal-prazos-card {
-  --cal-cor-clima: var(--color-padrao);
+  --cal-cor-clima: var(--info);
   --cal-cor-narrativo: var(--color-livre);
-  --cal-cor-objetivo: var(--color-power);
+  --cal-cor-objetivo: var(--accent);
   gap: 12px;
 }
 
@@ -719,9 +719,9 @@
 }
 
 .cal-selo.tipo-climatico {
-  color: var(--color-padrao);
-  border-color: color-mix(in oklch, var(--color-padrao) 40%, var(--border));
-  background: color-mix(in oklch, var(--color-padrao) 10%, transparent);
+  color: var(--info);
+  border-color: color-mix(in oklch, var(--info) 40%, var(--border));
+  background: color-mix(in oklch, var(--info) 10%, transparent);
 }
 
 .cal-selo.tipo-narrativo {
@@ -731,15 +731,15 @@
 }
 
 .cal-selo.status-visivel {
-  color: var(--color-react);
-  border-color: color-mix(in oklch, var(--color-react) 40%, var(--border));
-  background: color-mix(in oklch, var(--color-react) 10%, transparent);
+  color: var(--success);
+  border-color: color-mix(in oklch, var(--success) 40%, var(--border));
+  background: color-mix(in oklch, var(--success) 10%, transparent);
 }
 
 .cal-selo.status-futuro {
-  color: var(--color-power);
-  border-color: color-mix(in oklch, var(--color-power) 40%, var(--border));
-  background: color-mix(in oklch, var(--color-power) 10%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in oklch, var(--accent) 40%, var(--border));
+  background: color-mix(in oklch, var(--accent) 10%, transparent);
 }
 
 .cal-selo.status-oculto {
@@ -788,8 +788,8 @@
 }
 
 .cal-acao-delete:hover {
-  color: #e74c3c;
-  border-color: #e74c3c;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .cal-empty {
@@ -841,12 +841,12 @@
   width: 34px;
   height: 34px;
   border-radius: 9px;
-  background: color-mix(in oklch, var(--color-padrao) 18%, transparent);
-  border: 1px solid color-mix(in oklch, var(--color-padrao) 40%, var(--border));
+  background: color-mix(in oklch, var(--info) 18%, transparent);
+  border: 1px solid color-mix(in oklch, var(--info) 40%, var(--border));
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-padrao);
+  color: var(--info);
   font-size: 0.95rem;
   flex-shrink: 0;
 }
@@ -1185,9 +1185,9 @@ textarea.cal-input {
 }
 
 .cal-tipo-delete-btn:hover {
-  color: #ff6b6b;
-  border-color: #ff6b6b;
-  background: color-mix(in srgb, #ff6b6b 8%, transparent);
+  color: var(--danger);
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
 }
 
 .cal-tipo-pesos {
@@ -1419,8 +1419,8 @@ textarea.cal-input {
 }
 
 .cal-icone-picker-limpar:hover {
-  border-color: #e74c3c;
-  color: #e74c3c;
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 /* ─── Customizar calendário (modal config) ───────────────── */
@@ -1518,8 +1518,8 @@ textarea.cal-input {
 }
 
 .cal-row-delete-btn:hover {
-  color: #ff6b6b;
-  border-color: #ff6b6b;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .cal-tag-cloud {
@@ -1567,8 +1567,8 @@ textarea.cal-input {
 }
 
 .cal-tag-remove:hover {
-  background: color-mix(in srgb, #ff6b6b 15%, transparent);
-  color: #ff6b6b;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
 }
 
 .cal-tag-add-row {
@@ -1606,7 +1606,7 @@ textarea.cal-input {
 .cal-estacao-cruza {
   grid-column: 1 / -1;
   font-size: 0.75rem;
-  color: var(--color-bonus);
+  color: var(--warning);
   padding: 0 4px;
   margin-top: 2px;
   display: flex;
@@ -1622,13 +1622,13 @@ textarea.cal-input {
   gap: 12px;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid color-mix(in oklch, var(--color-power) 45%, var(--border));
-  background: color-mix(in oklch, var(--color-power) 12%, var(--bg-card));
+  border: 1px solid color-mix(in oklch, var(--accent) 45%, var(--border));
+  background: color-mix(in oklch, var(--accent) 12%, var(--bg-card));
   flex-wrap: wrap;
 }
 
 .dark-mode .cal-previa-faixa {
-  background: color-mix(in oklch, var(--color-power) 14%, var(--bg-surface));
+  background: color-mix(in oklch, var(--accent) 14%, var(--bg-surface));
 }
 
 .cal-previa-icone {
@@ -1641,9 +1641,9 @@ textarea.cal-input {
   /* Centraliza o <i> por dentro; como item flex o glifo desalinha. */
   font-size: 0.95rem;
   line-height: 1;
-  background: color-mix(in oklch, var(--color-power) 20%, transparent);
-  border: 1px solid color-mix(in oklch, var(--color-power) 40%, var(--border));
-  color: var(--color-power);
+  background: color-mix(in oklch, var(--accent) 20%, transparent);
+  border: 1px solid color-mix(in oklch, var(--accent) 40%, var(--border));
+  color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -1664,9 +1664,9 @@ textarea.cal-input {
 }
 
 .cal-icon-btn.ativo {
-  border-color: var(--color-power);
-  color: var(--color-power);
-  background: color-mix(in oklch, var(--color-power) 14%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 14%, transparent);
 }
 
 /* ─── Prazos de objetivo ───────────────────────────────────── */
@@ -1688,29 +1688,29 @@ textarea.cal-input {
 }
 
 .cal-prazo-row.vencendo {
-  border-left-color: var(--color-bonus);
+  border-left-color: var(--warning);
 }
 
 .cal-prazo-row.atrasado {
-  border-left-color: #e74c3c;
+  border-left-color: var(--danger);
 }
 
 .cal-selo.prazo-no-prazo {
-  color: var(--color-power);
-  border-color: color-mix(in oklch, var(--color-power) 40%, var(--border));
-  background: color-mix(in oklch, var(--color-power) 10%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in oklch, var(--accent) 40%, var(--border));
+  background: color-mix(in oklch, var(--accent) 10%, transparent);
 }
 
 .cal-selo.prazo-vencendo {
-  color: #e0a000;
-  border-color: color-mix(in oklch, #e0a000 45%, var(--border));
-  background: color-mix(in oklch, #e0a000 10%, transparent);
+  color: var(--warning);
+  border-color: color-mix(in oklch, var(--warning) 45%, var(--border));
+  background: color-mix(in oklch, var(--warning) 10%, transparent);
 }
 
 .cal-selo.prazo-atrasado {
-  color: #e74c3c;
-  border-color: color-mix(in oklch, #e74c3c 45%, var(--border));
-  background: color-mix(in oklch, #e74c3c 10%, transparent);
+  color: var(--danger);
+  border-color: color-mix(in oklch, var(--danger) 45%, var(--border));
+  background: color-mix(in oklch, var(--danger) 10%, transparent);
 }
 
 /* ─── Campos do calendário dentro de .modal-box ────────────── */

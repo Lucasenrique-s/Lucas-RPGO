@@ -67,7 +67,7 @@
 
 .faixa-vital-hp i { color: var(--bar-hp); }
 .faixa-vital-pp i { color: var(--bar-pp); }
-.faixa-vital-cr i { color: var(--color-react); }
+.faixa-vital-cr i { color: var(--color-defesa); }
 
 .faixa-vital-max {
   color: var(--text-sec);
@@ -75,11 +75,11 @@
 }
 
 .faixa-vital-temp {
-  color: var(--color-bonus);
+  color: var(--bar-hp-temp);
 }
 
 .faixa-vital-exausto {
-  color: #e74c3c;
+  color: var(--danger);
 }
 
 /* Empurra o botão de topo pro fim da faixa. */
@@ -118,7 +118,7 @@
 
 .faixa-vitais-fio-temp {
   height: 100%;
-  background: var(--color-bonus);
+  background: var(--bar-hp-temp);
   transition: width 0.25s ease;
 }
 
@@ -181,7 +181,7 @@
   background: var(--border);
   border-radius: 50%;
   margin: 0 auto 15px;
-  border: 3px solid var(--color-power);
+  border: 3px solid var(--accent);
   overflow: hidden;
   position: relative;
   cursor: pointer;
@@ -307,7 +307,7 @@
 
 .progress-fill-temp {
   height: 100%;
-  background: var(--color-bonus);
+  background: var(--bar-hp-temp);
   transition: width 0.5s;
 }
 
@@ -316,15 +316,15 @@
 
 .editable-num {
   cursor: pointer;
-  border-bottom: 1px dashed #aaa;
+  border-bottom: 1px dashed color-mix(in srgb, var(--text-sec) 70%, transparent);
   padding: 0 2px;
   font-weight: bold;
   transition: color 0.2s;
 }
 
 .editable-num:hover {
-  color: var(--color-power);
-  border-bottom-color: var(--color-power);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .input-edit-stat {
@@ -355,7 +355,7 @@
   font-size: 1rem;
   width: 18px;
   text-align: center;
-  color: var(--color-power);
+  color: var(--bar-recurso);
 }
 
 .recurso-nome {
@@ -392,7 +392,7 @@
    amarelo pra deixar claro que não é o valor base da ficha. */
 .valor-exausto,
 .valor-exausto strong {
-  color: #e8c24a;
+  color: var(--warning);
 }
 
 /* Marca explícita de "afetado por exaustão" — ícone 🛏 amarelo, espaçado,
@@ -400,7 +400,7 @@
 .exausto-marca {
   margin-left: 5px;
   font-size: 0.7em;
-  color: #e8c24a;
+  color: var(--warning);
   opacity: 0.9;
 }
 
@@ -420,7 +420,7 @@
   padding: 9px 11px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--color-react);
+  border-left: 3px solid var(--color-defesa);
   border-radius: 8px;
 }
 
@@ -436,7 +436,7 @@
 }
 
 .defesa-rotulo i {
-  color: var(--color-react);
+  color: var(--color-defesa);
 }
 
 /* Cada entrada (uma fonte de defesa) empilha: linha de pílulas + legenda opcional
@@ -509,7 +509,7 @@
 .berries-simbolo {
   font-size: 1.1rem;
   font-weight: 800;
-  color: #d4af37;
+  color: var(--highlight);
   line-height: 1;
 }
 
@@ -520,11 +520,11 @@
 
 /* Pisca o saldo ao confirmar: verde quando sobe, vermelho quando desce. */
 @keyframes berries-flash-sobe {
-  0% { color: #2ecc71; transform: scale(1.12); }
+  0% { color: var(--success); transform: scale(1.12); }
   100% { color: inherit; transform: scale(1); }
 }
 @keyframes berries-flash-desce {
-  0% { color: #ff6b6b; transform: scale(0.92); }
+  0% { color: var(--danger); transform: scale(0.92); }
   100% { color: inherit; transform: scale(1); }
 }
 .berries-valor.flash-sobe { animation: berries-flash-sobe 0.55s ease-out; }
@@ -556,15 +556,15 @@
 }
 
 .berries-btn:not(:disabled).tirar:hover {
-  border-color: #ff6b6b;
-  color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.12);
+  border-color: var(--danger);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
 }
 
 .berries-btn:not(:disabled).adicionar:hover {
-  border-color: #2ecc71;
-  color: #2ecc71;
-  background: rgba(46, 204, 113, 0.12);
+  border-color: var(--success);
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
 }
 
 .berries-btn:disabled {
@@ -589,7 +589,7 @@
 .berries-ctrl input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.18);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--highlight) 18%, transparent);
 }
 
 .berries-ctrl input::placeholder {
@@ -632,7 +632,7 @@
 
 .recursos-add:hover {
   background: var(--primary);
-  color: white;
+  color: var(--on-primary);
   border-color: var(--primary);
 }
 
@@ -727,7 +727,7 @@
 
 .recurso-btn:hover:not(:disabled) {
   background: var(--primary);
-  color: white;
+  color: var(--on-primary);
   border-color: var(--primary);
 }
 
@@ -761,7 +761,7 @@
 .derivado-value {
   font-size: 1.2rem;
   font-weight: 700;
-  color: var(--color-react);
+  color: var(--color-defesa);
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
@@ -803,7 +803,7 @@
   right: 4px;
   font-size: 0.6rem;
   font-weight: 700;
-  color: var(--color-bonus);
+  color: var(--highlight);
   font-variant-numeric: tabular-nums;
 }
 
@@ -877,7 +877,7 @@
 
 .pe-fill {
   height: 100%;
-  background: var(--color-power);
+  background: var(--accent);
   transition: width 0.5s;
 }
 
@@ -905,7 +905,7 @@
 }
 
 .hp-temp.ativo {
-  color: var(--color-bonus);
+  color: var(--bar-hp-temp);
   opacity: 1;
   font-weight: 700;
 }
@@ -920,12 +920,12 @@
 }
 
 .exaustao-linha.ativo {
-  border-color: #e74c3c;
-  background: color-mix(in oklch, #e74c3c 6%, var(--bg-surface));
+  border-color: var(--danger);
+  background: color-mix(in oklch, var(--danger) 6%, var(--bg-surface));
 }
 
 .exaustao-linha.ativo .recurso-icone {
-  color: #e74c3c;
+  color: var(--danger);
 }
 
 .exaustao-controles {
@@ -1017,7 +1017,7 @@
 
 .tab.active {
   background: var(--bg-card);
-  color: var(--color-power);
+  color: var(--accent);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
@@ -1069,12 +1069,14 @@
   border-color: var(--border);
 }
 
-.type-padrao { border-left: 5px solid var(--color-padrao); }
-.type-bonus  { border-left: 5px solid var(--color-bonus); }
-.type-power  { border-left: 5px solid var(--color-power); }
-.type-react  { border-left: 5px solid var(--color-react); }
-.type-livre  { border-left: 5px solid var(--color-livre); }
-.type-comum  { border-left: 5px solid var(--border); }
+/* `.action-card.type-*` empata em especificidade com `.dark-mode .action-card`
+   e vem depois — sem isso a faixa da cor da ação sumia no modo escuro. */
+.type-padrao, .action-card.type-padrao { border-left: 5px solid var(--color-padrao); }
+.type-bonus,  .action-card.type-bonus  { border-left: 5px solid var(--color-bonus); }
+.type-power,  .action-card.type-power  { border-left: 5px solid var(--color-power); }
+.type-react,  .action-card.type-react  { border-left: 5px solid var(--color-react); }
+.type-livre,  .action-card.type-livre  { border-left: 5px solid var(--color-livre); }
+.type-comum,  .action-card.type-comum  { border-left: 5px solid var(--border); }
 
 .card-title {
   font-weight: 700;
@@ -1127,15 +1129,15 @@
 }
 
 .tag-damage {
-  background: #ffebee;
-  color: #c62828;
-  border: 1px solid #ffcdd2;
+  background: color-mix(in oklch, var(--danger) 10%, var(--bg-card));
+  color: color-mix(in oklch, var(--danger) 85%, #000);
+  border: 1px solid color-mix(in oklch, var(--danger) 30%, var(--bg-card));
 }
 
 .dark-mode .tag-damage {
-  background: rgba(231, 76, 60, 0.15);
-  color: #ff8a80;
-  border-color: rgba(231, 76, 60, 0.3);
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: color-mix(in oklch, var(--danger) 60%, #fff);
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
 }
 
 .btn-card-trash {
@@ -1154,7 +1156,7 @@
 
 .btn-card-trash:hover {
   opacity: 1;
-  color: #e74c3c;
+  color: var(--danger);
 }
 
 .btn-card-edit {
@@ -1214,15 +1216,15 @@
 }
 
 .tag-custo {
-  background: color-mix(in oklch, var(--color-bonus) 15%, transparent);
-  color: var(--color-bonus);
-  border: 1px solid color-mix(in oklch, var(--color-bonus) 30%, transparent);
+  background: color-mix(in oklch, var(--highlight) 15%, transparent);
+  color: var(--highlight);
+  border: 1px solid color-mix(in oklch, var(--highlight) 30%, transparent);
 }
 
 /* ─── PESO/CARGA ───────────────────────────────────────────── */
 .peso-bar { margin: 20px 0; }
 .msg-sobrecarga {
-  color: #e74c3c;
+  color: var(--danger);
   font-size: 0.8rem;
   margin-top: 5px;
   font-weight: bold;
@@ -1230,20 +1232,20 @@
 
 /* ─── INVENTÁRIO: BOTÕES DE EQUIPAR/FAVORITAR ────────────── */
 .item-equipado { border-left-color: var(--primary) !important; }
-.item-favorito { box-shadow: inset 0 0 0 2px #d4af37; }
+.item-favorito { box-shadow: inset 0 0 0 2px var(--highlight); }
 
 .btn-favorito {
   background: none;
   border: none;
   cursor: pointer;
-  color: #ccc;
+  color: color-mix(in srgb, var(--text-sec) 55%, transparent);
   transition: color 0.2s;
   font-size: 0.9rem;
   margin-right: 5px;
   padding: 0;
 }
 
-.btn-favorito.ativo { color: #d4af37; }
+.btn-favorito.ativo { color: var(--highlight); }
 
 .item-card-actions {
   margin-top: 15px;
@@ -1303,14 +1305,14 @@
 }
 
 .prof-row.prof-on {
-  border-color: var(--color-power);
-  background: color-mix(in oklch, var(--color-power) 6%, var(--bg-card));
+  border-color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 6%, var(--bg-card));
 }
 
 /* Proficiência marcada por habilidade (checkbox travada) segue a cor da linha. */
 .prof-row.prof-on input[type="checkbox"]:checked {
-  background: var(--color-power);
-  border-color: var(--color-power);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .prof-bonus {
@@ -1338,7 +1340,7 @@
 }
 
 .prof-row.prof-on .prof-bonus {
-  color: var(--color-power);
+  color: var(--accent);
 }
 
 .prof-nome {
@@ -1366,7 +1368,7 @@
 
 .prof-fonte {
   font-size: 0.65rem;
-  color: var(--color-bonus);
+  color: var(--highlight);
   opacity: 0.75;
 }
 
@@ -1383,9 +1385,9 @@
 }
 
 .prof-dobro.ativo {
-  background: var(--color-power);
+  background: var(--accent);
   color: white;
-  border-color: var(--color-power);
+  border-color: var(--accent);
 }
 
 /* Dobro vindo de habilidade (travado). */
@@ -1414,8 +1416,8 @@
 
 .prof-outros.ativo {
   border-style: solid;
-  border-color: var(--color-bonus);
-  color: var(--color-bonus);
+  border-color: var(--highlight);
+  color: var(--highlight);
 }
 
 .prof-outros-input {
@@ -1476,7 +1478,7 @@
 
 .pericia-custom-acao.perigo:hover {
   color: #fff;
-  background: #d33;
+  background: var(--danger);
 }
 
 /* ─── CARDS DE TIPO (modal de item/ação) ─────────────────── */
@@ -1592,9 +1594,9 @@
 }
 
 .categoria-pill.ativo {
-  border-color: var(--color-power);
-  background: color-mix(in oklch, var(--color-power) 10%, var(--bg-card));
-  color: var(--color-power);
+  border-color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 10%, var(--bg-card));
+  color: var(--accent);
 }
 
 .categoria-pill i {
@@ -1643,11 +1645,11 @@
 }
 
 .propriedade-pill.ativo {
-  border-color: var(--color-power);
-  background: color-mix(in oklch, var(--color-power) 14%, var(--bg-card));
-  color: var(--color-power);
+  border-color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 14%, var(--bg-card));
+  color: var(--accent);
   font-weight: 700;
-  box-shadow: 0 1px 4px color-mix(in oklch, var(--color-power) 25%, transparent);
+  box-shadow: 0 1px 4px color-mix(in oklch, var(--accent) 25%, transparent);
 }
 
 .propriedade-pill.ativo i {
@@ -1681,13 +1683,13 @@
 }
 
 .hab-filtro.ativo {
-  background: var(--color-power);
+  background: var(--accent);
   color: white;
-  border-color: var(--color-power);
+  border-color: var(--accent);
 }
 
 .hab-usar {
-  background: var(--color-power);
+  background: var(--accent);
   color: white;
   border: none;
   border-radius: 6px;
@@ -1768,24 +1770,24 @@
   transition: transform 0.15s;
 }
 .hab-toggle.ligada {
-  background: color-mix(in srgb, var(--color-power) 16%, transparent);
-  border-color: var(--color-power);
-  color: var(--color-power);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .hab-toggle.ligada .hab-toggle-trilho {
-  background: var(--color-power);
+  background: var(--accent);
 }
 .hab-toggle.ligada .hab-toggle-bolha {
   transform: translateX(12px);
 }
 .hab-toggle:hover {
-  border-color: var(--color-power);
+  border-color: var(--accent);
 }
 
 /* Card de habilidade sustentada ligada: borda destacada na cor power. */
 .action-card.hab-card-ligada {
-  box-shadow: 0 0 0 1px var(--color-power),
-    0 0 12px color-mix(in srgb, var(--color-power) 30%, transparent);
+  box-shadow: 0 0 0 1px var(--accent),
+    0 0 12px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 /* ─── CHIPS DE EFEITO ─────────────────────────────────────── */
@@ -1913,8 +1915,8 @@
 }
 
 .picker-preset-fechar:hover {
-  color: #e74c3c;
-  background: color-mix(in oklch, #e74c3c 10%, transparent);
+  color: var(--danger);
+  background: color-mix(in oklch, var(--danger) 10%, transparent);
 }
 
 .picker-preset-grupo {
@@ -2088,8 +2090,8 @@
 }
 
 .efeito-editor-rm:hover {
-  color: #e74c3c;
-  background: color-mix(in oklch, #e74c3c 10%, transparent);
+  color: var(--danger);
+  background: color-mix(in oklch, var(--danger) 10%, transparent);
 }
 
 .efeito-editor-corpo {
@@ -2202,7 +2204,7 @@
 
 .tripulante-pv-fill {
   height: 100%;
-  background: var(--color-power, #e74c3c);
+  background: var(--bar-hp);
   transition: width 0.25s;
 }
 
@@ -2270,8 +2272,8 @@
 }
 
 .navio-btn.rm:hover {
-  color: #e74c3c;
-  border-color: #e74c3c;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .navio-pv {
@@ -2352,7 +2354,7 @@
 
 .navio-pv-fill {
   height: 100%;
-  background: var(--color-power, #e74c3c);
+  background: var(--bar-hp);
   transition: width 0.25s;
 }
 
@@ -2389,7 +2391,7 @@
 }
 
 .navio-stat-valor.alerta {
-  color: #e0a000;
+  color: var(--warning);
 }
 
 .navio-descricao {
@@ -2465,7 +2467,7 @@
 }
 
 .input-acima-teto {
-  border-color: #e0a000 !important;
+  border-color: var(--warning) !important;
 }
 
 .attr-teto-aviso {
@@ -2473,13 +2475,13 @@
   font-size: 0.62rem;
   line-height: 1.2;
   font-style: italic;
-  color: #e0a000;
+  color: var(--warning);
 }
 
 .attr-acima-teto {
   font-size: 0.62em;
   margin-left: 4px;
-  color: #e0a000;
+  color: var(--warning);
   vertical-align: super;
 }
 
@@ -2574,7 +2576,7 @@
 }
 
 .arvore-aviso {
-  color: #e0a000;
+  color: var(--warning);
 }
 
 .arvore-barra-acoes {
@@ -2639,7 +2641,7 @@
 
 .arvore-filtro-opcao.ativo {
   background: var(--primary);
-  color: white;
+  color: var(--on-primary);
 }
 
 .arvore-filtro-x {
@@ -2653,7 +2655,7 @@
 }
 
 .arvore-filtro-x:hover {
-  color: #d33;
+  color: var(--danger);
   opacity: 1;
 }
 
@@ -2988,11 +2990,11 @@
 }
 
 .arvore-no.disponivel .arvore-no-circulo {
-  border-color: var(--color-react);
+  border-color: var(--success);
   color: var(--text-main);
   box-shadow:
     0 3px 10px rgba(0, 0, 0, 0.25),
-    0 0 0 3px color-mix(in oklch, var(--color-react) 28%, transparent);
+    0 0 0 3px color-mix(in oklch, var(--success) 28%, transparent);
 }
 
 .arvore-no.comprado .arvore-no-circulo {
@@ -3025,12 +3027,12 @@
   0%, 100% {
     box-shadow:
       0 3px 10px rgba(0, 0, 0, 0.25),
-      0 0 0 3px color-mix(in oklch, var(--color-react) 28%, transparent);
+      0 0 0 3px color-mix(in oklch, var(--success) 28%, transparent);
   }
   50% {
     box-shadow:
       0 3px 10px rgba(0, 0, 0, 0.25),
-      0 0 0 7px color-mix(in oklch, var(--color-react) 16%, transparent);
+      0 0 0 7px color-mix(in oklch, var(--success) 16%, transparent);
   }
 }
 
@@ -3153,7 +3155,7 @@
   font-family: inherit;
   font-size: inherit;
   line-height: 1.5;
-  border: 1px solid color-mix(in oklch, var(--color-react) 40%, var(--border));
+  border: 1px solid color-mix(in oklch, var(--success) 40%, var(--border));
   border-radius: 999px;
   background: var(--bg-surface);
   color: var(--text-main);
@@ -3162,16 +3164,16 @@
 }
 
 .arvore-disponiveis i {
-  color: var(--color-react);
+  color: var(--success);
 }
 
 .arvore-disponiveis:hover {
-  border-color: var(--color-react);
+  border-color: var(--success);
 }
 
 .arvore-disponiveis.ativo {
-  background: color-mix(in oklch, var(--color-react) 18%, var(--bg-surface));
-  border-color: var(--color-react);
+  background: color-mix(in oklch, var(--success) 18%, var(--bg-surface));
+  border-color: var(--success);
 }
 
 .arvore-disponiveis.vazio {
@@ -3187,7 +3189,7 @@
 
 .arvore-resumo-disp {
   font-style: normal;
-  color: var(--color-react);
+  color: var(--success);
   font-weight: 700;
 }
 
@@ -3303,7 +3305,7 @@
   gap: 4px;
   font-size: 0.72rem;
   font-style: italic;
-  color: #e0a000;
+  color: var(--warning);
 }
 
 /* ─── Item: pilha, traços da arma e concessões ─────────────── */
@@ -3327,7 +3329,7 @@
   gap: 5px;
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--color-power);
+  color: var(--accent);
 }
 
 /* O que o item dá; apagado se não estiver equipado. */
@@ -3348,7 +3350,7 @@
   margin-bottom: 4px;
   font-size: 0.72rem;
   font-style: italic;
-  color: #e0a000;
+  color: var(--warning);
 }
 
 /* Rolar desabilitado (ação travada). */
@@ -3560,7 +3562,7 @@
 }
 
 .vinculo-marca-busca {
-  background: color-mix(in oklch, var(--color-bonus) 35%, transparent);
+  background: color-mix(in oklch, var(--highlight) 35%, transparent);
   color: inherit;
   border-radius: 3px;
   padding: 0 1px;
@@ -4113,7 +4115,7 @@
   gap: 7px;
   font-size: 0.78rem;
   line-height: 1.4;
-  color: #e0a000;
+  color: var(--warning);
   margin: 0;
 }
 
@@ -4240,7 +4242,7 @@
 
 .obj-alerta,
 .obj-alerta strong {
-  color: #e0a000;
+  color: var(--warning);
 }
 
 .obj-sem-mesa {
@@ -4269,7 +4271,7 @@
   gap: 12px;
   padding: 12px 14px;
   border: 1px solid var(--border);
-  border-left: 4px solid var(--color-power);
+  border-left: 4px solid var(--accent);
   border-radius: 10px;
   background: var(--bg-card);
   transition: border-color 0.2s, opacity 0.2s;
@@ -4280,7 +4282,7 @@
 }
 
 .obj-linha.feito {
-  border-left-color: var(--color-react);
+  border-left-color: var(--success);
   opacity: 0.62;
 }
 
@@ -4306,11 +4308,11 @@
 }
 
 .obj-marcar:hover {
-  color: var(--color-react);
+  color: var(--success);
 }
 
 .obj-linha.feito .obj-marcar {
-  color: var(--color-react);
+  color: var(--success);
 }
 
 .obj-corpo {
@@ -4328,7 +4330,7 @@
 }
 
 .obj-icone {
-  color: var(--color-power);
+  color: var(--accent);
 }
 
 .obj-titulo {
@@ -4370,13 +4372,13 @@
 }
 
 .obj-prazo.vencendo {
-  border-color: color-mix(in oklch, #e0a000 55%, var(--border));
-  color: #e0a000;
+  border-color: color-mix(in oklch, var(--warning) 55%, var(--border));
+  color: var(--warning);
 }
 
 .obj-prazo.atrasado {
-  border-color: color-mix(in oklch, #e74c3c 55%, var(--border));
-  color: #e74c3c;
+  border-color: color-mix(in oklch, var(--danger) 55%, var(--border));
+  color: var(--danger);
 }
 
 .obj-prazo-data {

@@ -45,7 +45,7 @@
 .narrador-topbar .btn-paleta:hover {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .btn-voltar {
@@ -114,7 +114,7 @@
 }
 
 .codigo-badge {
-  background: rgba(236, 126, 34, 0.2);
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
   color: var(--primary);
   font-size: 1.1rem;
   padding: 8px 20px;
@@ -129,7 +129,7 @@
 }
 .codigo-badge:hover {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .grid-personagens {
@@ -387,7 +387,7 @@
 
 .narrador-btn-pri {
   background: var(--primary);
-  color: white;
+  color: var(--on-primary);
 }
 
 /* Avatares/alvos do modal de teste */
@@ -487,15 +487,15 @@
 }
 
 .narrador-d20-btn.vantagem.active {
-  border-color: #1f8f48;
-  background: color-mix(in oklch, #1f8f48 14%, var(--bg-card));
-  color: #1f8f48;
+  border-color: var(--success);
+  background: color-mix(in oklch, var(--success) 14%, var(--bg-card));
+  color: var(--success);
 }
 
 .narrador-d20-btn.desvantagem.active {
-  border-color: #c6342f;
-  background: color-mix(in oklch, #c6342f 14%, var(--bg-card));
-  color: #c6342f;
+  border-color: var(--danger);
+  background: color-mix(in oklch, var(--danger) 14%, var(--bg-card));
+  color: var(--danger);
 }
 
 .narrador-bonus-linha {

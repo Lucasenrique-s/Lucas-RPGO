@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 // Seletor de cor próprio no lugar do <input type="color">, que no Windows abre
 // o diálogo nativo (cara de Paint 98). Quadrado de saturação/brilho + barra de
 // matiz + campo hex, num popover que segue o tema (--bg-card, --border...).
+// O popover vai num portal com posição fixa: dentro de modal com scroll ele
+// seria cortado. Abre embaixo do botão e vira pra cima se não couber.
+
+const LARGURA_POPOVER = 224;
+const MARGEM_TELA = 8;
 
 type Hsv = { h: number; s: number; v: number };
 
@@ -63,14 +69,19 @@ export function SeletorCor({
   valor,
   onChange,
   rotulo = "Escolher cor",
+  amostras,
 }: {
   /** Hex (#rrggbb). */
   valor: string;
   onChange: (hex: string) => void;
   rotulo?: string;
+  /** Atalhos de cor mostrados no popover (ex.: as outras cores do tema). */
+  amostras?: string[];
 }) {
   const [aberto, setAberto] = useState(false);
   const raiz = useRef<HTMLDivElement>(null);
+  const popover = useRef<HTMLDivElement>(null);
+  const [posicao, setPosicao] = useState<{ top: number; left: number } | null>(null);
 
   // HSV local: guarda matiz/saturação mesmo quando a cor fica preta/cinza
   // (hex sozinho perde a matiz e a bolinha pularia pro vermelho).
@@ -89,10 +100,41 @@ export function SeletorCor({
     }
   }
 
+  // Posiciona o popover (e reposiciona em scroll/resize, ex.: modal rolando).
+  // Roda antes do paint, então reabrir não mostra a posição antiga.
+  useLayoutEffect(() => {
+    if (!aberto) return;
+    function posicionar() {
+      const botao = raiz.current?.getBoundingClientRect();
+      if (!botao) return;
+      const altura = popover.current?.offsetHeight ?? 260;
+      let top = botao.bottom + 6;
+      if (top + altura > window.innerHeight - MARGEM_TELA && botao.top - altura - 6 > MARGEM_TELA) {
+        top = botao.top - altura - 6;
+      }
+      const left = Math.min(
+        Math.max(MARGEM_TELA, botao.left),
+        window.innerWidth - LARGURA_POPOVER - MARGEM_TELA,
+      );
+      setPosicao({ top, left });
+    }
+    posicionar();
+    // 2ª passada: agora o popover existe e tem altura real.
+    const quadro = requestAnimationFrame(posicionar);
+    window.addEventListener("resize", posicionar);
+    window.addEventListener("scroll", posicionar, true);
+    return () => {
+      cancelAnimationFrame(quadro);
+      window.removeEventListener("resize", posicionar);
+      window.removeEventListener("scroll", posicionar, true);
+    };
+  }, [aberto]);
+
   useEffect(() => {
     if (!aberto) return;
     function fora(e: PointerEvent) {
-      if (!raiz.current?.contains(e.target as Node)) setAberto(false);
+      const alvo = e.target as Node;
+      if (!raiz.current?.contains(alvo) && !popover.current?.contains(alvo)) setAberto(false);
     }
     function esc(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -129,6 +171,17 @@ export function SeletorCor({
 
   const corAtual = hsvParaHex(hsv);
   const corMatiz = hsvParaHex({ h: hsv.h, s: 1, v: 1 });
+  const atalhos = [...new Set((amostras ?? []).map((c) => c.toLowerCase()))].filter((c) =>
+    /^#[0-9a-f]{6}$/.test(c),
+  );
+
+  function escolherAmostra(hex: string) {
+    const novo = hexParaHsv(hex);
+    if (!novo) return;
+    setHsv(novo);
+    setHexTexto(hex);
+    onChange(hex);
+  }
 
   return (
     <div className="seletor-cor" ref={raiz}>
@@ -144,11 +197,22 @@ export function SeletorCor({
         <i className="fas fa-eye-dropper" />
       </button>
 
-      {aberto && (
-        <div className="seletor-cor-popover" role="dialog" aria-label={rotulo}>
+      {aberto &&
+        createPortal(
+        <div
+          ref={popover}
+          className="seletor-cor-popover"
+          role="dialog"
+          aria-label={rotulo}
+          style={{
+            top: posicao?.top ?? 0,
+            left: posicao?.left ?? 0,
+            visibility: posicao ? "visible" : "hidden",
+          }}
+        >
           <div
             className="seletor-cor-sv"
-            style={{ background: corMatiz }}
+            style={{ backgroundColor: corMatiz }}
             {...quadrado}
           >
             <span
@@ -180,8 +244,25 @@ export function SeletorCor({
               OK
             </button>
           </div>
-        </div>
-      )}
+
+          {atalhos.length > 0 && (
+            <div className="seletor-cor-amostras" aria-label="Cores do tema">
+              {atalhos.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`seletor-cor-amostra ${c === corAtual ? "ativo" : ""}`}
+                  style={{ background: c }}
+                  title={c}
+                  aria-label={`Usar ${c}`}
+                  onClick={() => escolherAmostra(c)}
+                />
+              ))}
+            </div>
+          )}
+        </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -396,7 +396,7 @@
 .bestiario-btn-salvar {
   border: none;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .bestiario-btn-salvar:hover:not(:disabled) {
@@ -412,13 +412,13 @@
 .bestiario-btn-remover {
   border: 1px solid var(--border);
   background: transparent;
-  color: #e05555;
+  color: var(--danger);
   font-weight: 600;
 }
 
 .bestiario-btn-remover:hover {
-  background: color-mix(in oklch, #e05555 10%, transparent);
-  border-color: #e05555;
+  background: color-mix(in oklch, var(--danger) 10%, transparent);
+  border-color: var(--danger);
 }
 
 .bestiario-secao {
@@ -638,7 +638,7 @@
   border-radius: 6px;
   border: 1px solid var(--border);
   background: transparent;
-  color: #e05555;
+  color: var(--danger);
   font-size: 0.75rem;
   cursor: pointer;
 }
@@ -1014,9 +1014,9 @@ button.bestiario-ficha-badge-rolavel:hover {
   font-weight: 600;
   padding: 4px 8px;
   border-radius: 6px;
-  background: color-mix(in oklch, var(--color-bonus) 15%, transparent);
-  color: var(--color-bonus);
-  border: 1px solid color-mix(in oklch, var(--color-bonus) 30%, transparent);
+  background: color-mix(in oklch, var(--highlight) 15%, transparent);
+  color: var(--highlight);
+  border: 1px solid color-mix(in oklch, var(--highlight) 30%, transparent);
 }
 
 .bestiario-condicao-inline {
@@ -1274,7 +1274,7 @@ button.bestiario-ficha-badge-rolavel:hover {
 
 .wizard-origem-opcao.ativo {
   border-color: var(--primary);
-  border-left-color: var(--color-power, var(--primary));
+  border-left-color: var(--accent);
   background: color-mix(in oklch, var(--primary) 8%, var(--bg-card));
 }
 
@@ -1447,8 +1447,8 @@ button.bestiario-ficha-badge-rolavel:hover {
 }
 
 .bestiario-efeito-remover:hover {
-  color: #e74c3c;
-  background: color-mix(in oklch, #e74c3c 10%, transparent);
+  color: var(--danger);
+  background: color-mix(in oklch, var(--danger) 10%, transparent);
 }
 
 .bestiario-efeito-corpo {
