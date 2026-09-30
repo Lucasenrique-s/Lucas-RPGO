@@ -13,11 +13,17 @@
   position: relative;
 }
 
+/* Com mesa, o relógio da campanha divide o canto com o botão de tema. */
+.ficha-layout.com-relogio {
+  --topo-acoes-reserva: 220px;
+}
+
 .ficha-topo-acoes {
   position: absolute;
   top: 30px;
   right: 30px;
   display: flex;
+  align-items: center;
   gap: 8px;
   z-index: 5;
 }
@@ -4423,7 +4429,8 @@
 /* ─── RESPONSIVO ────────────────────────────────────────────── */
 /* No fim do arquivo de propósito: a ordem garante que estas regras vençam. */
 @media (max-width: 900px) {
-  .ficha-layout {
+  .ficha-layout,
+  .ficha-layout.com-relogio {
     --topo-acoes-reserva: 0px;
     grid-template-columns: 1fr;
     gap: 20px;

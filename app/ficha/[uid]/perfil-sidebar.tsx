@@ -376,6 +376,8 @@ export function PerfilSidebar({
   const nadoPorEfeito = (nadarExtra?.valor ?? 0) >= p.nado && !!nadarExtra?.fontes.length;
 
   // CR calculada aqui porque a faixa condensada também usa.
+  // Espelho no servidor pra visão do narrador: lib/resumo-personagem.ts
+  // (CR, iniciativa, percepção passiva e vida/PP efetivos) — manter em sync.
   const crAtrib = atributoDeCalculo("cr", "destreza", subs);
   const crBonusFixo = caArmadura + efeitosAgregados.bonusCR.valor;
   const crTotal = crBase(atributosParaTeste[crAtrib.atributo], p.crOutros) + crBonusFixo;
