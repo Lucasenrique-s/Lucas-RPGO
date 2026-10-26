@@ -29,7 +29,7 @@ export type EstadoGravacao = {
   // Jogadores da mesa (fichas principais), em ordem alfabética.
   personagens: PersonagemGravacao[];
   // Combate ativo: ordem de iniciativa (só os personagens) e de quem é a vez.
-  combate: { ordem: string[]; vez: { personagemId: string | null; criatura: boolean } } | null;
+  combate: { id: string; ordem: string[]; vez: { personagemId: string | null; criatura: boolean } } | null;
 };
 
 /** A config da mesa; cria na primeira vez, com todo mundo presente. */
@@ -86,6 +86,7 @@ export async function carregarEstadoGravacao(mesaId: string, token: string): Pro
         combates: {
           where: { encerradoEm: null },
           select: {
+            id: true,
             turnoAtual: true,
             participantes: {
               select: { personagemId: true, criaturaId: true, iniciativa: true, ordem: true, condicoesAtivas: true },
@@ -149,6 +150,7 @@ export async function carregarEstadoGravacao(mesaId: string, token: string): Pro
     personagens: lista,
     combate: combateAtivo
       ? {
+        id: combateAtivo.id,
         ordem: participantes.flatMap((i) => (i.personagemId ? [i.personagemId] : [])),
         vez: { personagemId: daVez?.personagemId ?? null, criatura: !!daVez?.criaturaId },
       }

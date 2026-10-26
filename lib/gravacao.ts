@@ -48,9 +48,12 @@ export type ConfigGravacao = {
   excecoes: Record<string, Partial<MostrarGravacao>>;
   // Por personagem, ids dos recursos customizados que aparecem.
   recursos: Record<string, string[]>;
-  auto: { cinematicoNoCombate: boolean; ordemPorIniciativa: boolean };
-  // Modo de antes do combate, pra voltar quando ele acabar.
-  modoAntesDoCombate: ModoGravacao | null;
+  // Combate (todas desligadas por padrão): destacar quem está no turno (selo
+  // "Vez" e, no Cinemático, em cena), Cinemático automático e ordem pela iniciativa.
+  auto: { destacarVez: boolean; cinematicoNoCombate: boolean; ordemPorIniciativa: boolean };
+  // Com `auto.cinematicoNoCombate`: o modo escolhido na mão durante aquele
+  // combate. Vale só enquanto ele dura; acabou, volta `modo`.
+  modoNoCombate: { combateId: string; modo: ModoGravacao } | null;
   mapa: MapaGravacao;
   // Quando a tela de gravação mudou (Date.now()). A config nova chega ao
   // overlay pelo canal antes de ir pro banco: uma busca com versão menor não
@@ -94,8 +97,8 @@ export const CONFIG_GRAVACAO_PADRAO: ConfigGravacao = {
   mostrar: MOSTRAR_PADRAO,
   excecoes: {},
   recursos: {},
-  auto: { cinematicoNoCombate: false, ordemPorIniciativa: false },
-  modoAntesDoCombate: null,
+  auto: { destacarVez: false, cinematicoNoCombate: false, ordemPorIniciativa: false },
+  modoNoCombate: null,
   mapa: { ligado: false, posicao: "direita", encaixe: "ajustar", fonteObs: "Mapa" },
   versao: 0,
 };
@@ -153,6 +156,27 @@ function mapaIds<T>(raw: unknown, ler: (v: unknown) => T): Record<string, T> {
   return out;
 }
 
+function lerModoNoCombate(raw: unknown): ConfigGravacao["modoNoCombate"] {
+  const o = obj(raw);
+  const m = modo(o.modo);
+  return m && typeof o.combateId === "string" && o.combateId ? { combateId: o.combateId.slice(0, 64), modo: m } : null;
+}
+
+/**
+ * Modo que vale agora. Com o Cinemático automático e um combate ativo: o
+ * escolhido na mão durante este combate, ou Cinemático.
+ */
+export function modoEfetivo(config: ConfigGravacao, combateId: string | null): ModoGravacao {
+  if (!combateId || !config.auto.cinematicoNoCombate) return config.modo;
+  return config.modoNoCombate?.combateId === combateId ? config.modoNoCombate.modo : "cinematico";
+}
+
+/** Escolher um modo: durante o combate automático, só vale até ele acabar. */
+export function comModo(config: ConfigGravacao, modo: ModoGravacao, combateId: string | null): ConfigGravacao {
+  if (combateId && config.auto.cinematicoNoCombate) return { ...config, modoNoCombate: { combateId, modo } };
+  return { ...config, modo };
+}
+
 /** Nunca lança: roda no render e no GET do overlay. */
 export function lerConfigGravacao(raw: unknown): ConfigGravacao {
   const o = obj(raw);
@@ -174,10 +198,11 @@ export function lerConfigGravacao(raw: unknown): ConfigGravacao {
     excecoes: mapaIds(o.excecoes, mostrarParcial),
     recursos: mapaIds(o.recursos, ids),
     auto: {
+      destacarVez: auto.destacarVez === true,
       cinematicoNoCombate: auto.cinematicoNoCombate === true,
       ordemPorIniciativa: auto.ordemPorIniciativa === true,
     },
-    modoAntesDoCombate: modo(o.modoAntesDoCombate),
+    modoNoCombate: lerModoNoCombate(o.modoNoCombate),
     mapa: {
       ligado: mapa.ligado === true,
       posicao: typeof mapa.posicao === "string" && POSICOES.has(mapa.posicao) ? (mapa.posicao as PosicaoMapa) : p.mapa.posicao,

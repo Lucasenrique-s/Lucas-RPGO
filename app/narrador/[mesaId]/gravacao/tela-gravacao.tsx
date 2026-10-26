@@ -11,10 +11,13 @@ import {
   EVENTO_MUDOU,
   ID_NARRADOR,
   MODOS_GRAVACAO,
+  comModo,
+  modoEfetivo,
   ordenarPorConfig,
   proximoExibir,
   type ConfigGravacao,
   type ExibirBarra,
+  type ModoGravacao,
   type MostrarGravacao,
 } from "@/lib/gravacao";
 import type { EstadoGravacao } from "@/lib/gravacao-servidor";
@@ -41,6 +44,9 @@ type Props = {
 };
 
 type Salvamento = "salvo" | "salvando" | "erro";
+
+// Versão da config: a hora da mudança (só em clique/atalho, nunca no render).
+const versaoNova = () => Date.now();
 
 export function TelaGravacao({
   mesa,
@@ -74,7 +80,7 @@ export function TelaGravacao({
   const filaSalvar = useRef(Promise.resolve());
 
   function mudar(atualizar: (c: ConfigGravacao) => ConfigGravacao) {
-    const nova = { ...atualizar(configRef.current), versao: Date.now() };
+    const nova = { ...atualizar(configRef.current), versao: versaoNova() };
     configRef.current = nova;
     setConfig(nova);
     // O overlay aplica na hora; o banco vem logo depois (pra quem abrir depois).
@@ -102,7 +108,12 @@ export function TelaGravacao({
   const candidatos = ordenarPorConfig([ID_NARRADOR, ...estado.personagens.map((p) => p.id)], config.ordem);
   const jogadoresPresentes = candidatos.filter((id) => id !== ID_NARRADOR && config.presentes.includes(id));
 
-  useAtalhos(configRef, mudar, jogadoresPresentes);
+  // Com o Cinemático automático, o modo durante o combate é outro.
+  const combateAtivo = estado.combate?.id ?? null;
+  const modoAgora = modoEfetivo(config, combateAtivo);
+  const escolherModo = (modo: ModoGravacao) => mudar((c) => comModo(c, modo, combateAtivo));
+
+  useAtalhos(configRef, mudar, { jogadoresPresentes, modoAgora, escolherModo });
 
   // Arrastado na prévia e solto sobre outro card: vai pro lugar dele (depois
   // dele, se vinha de antes; antes dele, se vinha de depois).
@@ -139,7 +150,13 @@ export function TelaGravacao({
       <div className="grv-corpo">
         <div className="grv-principal">
           <Previa>
-            <CenaGravacao layout={cena.layout} dados={cena.dados} mostrar={cena.mostrar} aoSoltarSobre={moverPara} />
+            <CenaGravacao
+              layout={cena.layout}
+              dados={cena.dados}
+              mostrar={cena.mostrar}
+              vez={cena.vez}
+              aoSoltarSobre={moverPara}
+            />
           </Previa>
           <p className="grv-dica grv-dica-previa">
             <i className="fas fa-hand" /> Arraste um card e solte em cima de outro pra trocar a ordem.
@@ -162,19 +179,74 @@ export function TelaGravacao({
                 <button
                   key={m.slug}
                   type="button"
-                  className={`grv-opcao${config.modo === m.slug ? " ativo" : ""}`}
-                  onClick={() => mudar((c) => ({ ...c, modo: m.slug }))}
+                  className={`grv-opcao${modoAgora === m.slug ? " ativo" : ""}`}
+                  onClick={() => escolherModo(m.slug)}
                 >
                   <i className={`fas ${m.icone}`} /> {m.nome} <kbd>{i + 1}</kbd>
                 </button>
               ))}
             </div>
             <p className="grv-dica">
-              {config.modo === "cinematico" && "Quem tem a estrela fica em destaque; sem ninguém, todos iguais."}
-              {config.modo === "foco" && "Só quem tem a marca de Foco aparece; sem ninguém marcado, só o narrador."}
-              {config.modo === "narracao" && "Narrador grande e os jogadores em volta."}
-              {config.modo === "igualitario" && "Todos do mesmo tamanho."}
+              {modoAgora === "cinematico" &&
+                (combateAtivo && config.auto.destacarVez
+                  ? "No combate, quem está no turno fica em destaque (criatura: o narrador)."
+                  : "Quem tem a estrela fica em destaque; sem ninguém, todos iguais.")}
+              {modoAgora === "foco" && "Só quem tem a marca de Foco aparece; sem ninguém marcado, só o narrador."}
+              {modoAgora === "narracao" && "Narrador grande e os jogadores em volta."}
+              {modoAgora === "igualitario" && "Todos do mesmo tamanho."}
             </p>
+            {combateAtivo && config.auto.cinematicoNoCombate && (
+              <p className="grv-dica">
+                <i className="fas fa-shield-halved" /> Modo do combate: quando ele acabar, volta para{" "}
+                <b>{MODOS_GRAVACAO.find((m) => m.slug === config.modo)?.nome}</b>.
+              </p>
+            )}
+          </Secao>
+
+          <Secao titulo="Combate" icone="fa-khanda">
+            <p className={`grv-combate-status${combateAtivo ? " ativo" : ""}`}>
+              {combateAtivo ? (
+                <>
+                  <i className="fas fa-circle" /> Em combate · vez de{" "}
+                  <b>
+                    {estado.combate?.vez.personagemId
+                      ? (estado.personagens.find((p) => p.id === estado.combate?.vez.personagemId)?.nome ?? "alguém")
+                      : estado.combate?.vez.criatura
+                        ? "uma criatura (destaca o narrador)"
+                        : "ninguém"}
+                  </b>
+                </>
+              ) : (
+                "Sem combate agora."
+              )}
+            </p>
+            <p className="grv-dica">Todas desligadas: o overlay ignora o combate.</p>
+            <label className="grv-caixa">
+              <input
+                type="checkbox"
+                checked={config.auto.destacarVez}
+                onChange={(e) => mudar((c) => ({ ...c, auto: { ...c.auto, destacarVez: e.target.checked } }))}
+              />
+              Destacar quem está no turno (borda dourada e selo &quot;Vez&quot;; no Cinemático, fica em cena)
+            </label>
+            <label className="grv-caixa">
+              <input
+                type="checkbox"
+                checked={config.auto.cinematicoNoCombate}
+                onChange={(e) =>
+                  mudar((c) => ({ ...c, auto: { ...c.auto, cinematicoNoCombate: e.target.checked }, modoNoCombate: null }))
+                }
+              />
+              Cinemático durante o combate (depois volta ao modo de antes)
+            </label>
+            <label className="grv-caixa">
+              <input
+                type="checkbox"
+                checked={config.auto.ordemPorIniciativa}
+                onChange={(e) => mudar((c) => ({ ...c, auto: { ...c.auto, ordemPorIniciativa: e.target.checked } }))}
+              />
+              Ordem dos cards pela iniciativa durante o combate
+            </label>
           </Secao>
 
           <Secao titulo="Mostrar (todos)" icone="fa-eye">
@@ -610,12 +682,12 @@ function Previa({ children }: { children: React.ReactNode }) {
 function useAtalhos(
   configRef: React.RefObject<ConfigGravacao>,
   mudar: (f: (c: ConfigGravacao) => ConfigGravacao) => void,
-  jogadoresPresentes: string[],
+  extra: { jogadoresPresentes: string[]; modoAgora: ModoGravacao; escolherModo: (modo: ModoGravacao) => void },
 ) {
   // O que o ouvinte precisa ler sempre atualizado.
-  const atual = useRef({ mudar, jogadoresPresentes });
+  const atual = useRef({ mudar, ...extra });
   useEffect(() => {
-    atual.current = { mudar, jogadoresPresentes };
+    atual.current = { mudar, ...extra };
   });
 
   useEffect(() => {
@@ -623,11 +695,11 @@ function useAtalhos(
       const alvo = e.target as HTMLElement | null;
       if (alvo && (alvo.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(alvo.tagName))) return;
       if (e.ctrlKey || e.altKey || e.metaKey) return;
-      const { mudar, jogadoresPresentes } = atual.current;
+      const { mudar, jogadoresPresentes, modoAgora, escolherModo } = atual.current;
       const c = configRef.current;
       const digito = /^Digit(\d)$/.exec(e.code)?.[1];
       // ⇧1…9 e 0 mexem na seleção do modo atual: Foco no Foco, em cena nos outros.
-      const campo = c.modo === "foco" ? "foco" : "emCena";
+      const campo = modoAgora === "foco" ? "foco" : "emCena";
       const alternar = (id: string) =>
         mudar((x) => ({ ...x, [campo]: x[campo].includes(id) ? x[campo].filter((y) => y !== id) : [...x[campo], id] }));
 
@@ -644,8 +716,7 @@ function useAtalhos(
       } else if (digito === "0") {
         mudar((x) => ({ ...x, [campo]: [] }));
       } else if (digito && Number(digito) <= MODOS_GRAVACAO.length) {
-        const modo = MODOS_GRAVACAO[Number(digito) - 1].slug;
-        mudar((x) => ({ ...x, modo }));
+        escolherModo(MODOS_GRAVACAO[Number(digito) - 1].slug);
       } else {
         const mostrar = c.mostrar;
         const patch: Partial<MostrarGravacao> | null =
@@ -729,7 +800,17 @@ function useRepasseAoOverlay({
       mudancas.on("postgres_changes", { event: "*", schema: "public", table: "recursos", filter: `personagem_id=in.(${ids})` }, mudou);
     }
     if (sessaoId) {
-      mudancas.on("postgres_changes", { event: "*", schema: "public", table: "combates", filter: `sessao_id=eq.${sessaoId}` }, mudouERecarregar);
+      // Turno novo só avisa; combate que começa ou acaba recarrega a página,
+      // pra escutar as instâncias do combate certo.
+      mudancas.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "combates", filter: `sessao_id=eq.${sessaoId}` },
+        (payload) => {
+          const novo = payload.new as { encerrado_em?: string | null } | undefined;
+          if (payload.eventType !== "UPDATE" || novo?.encerrado_em) mudouERecarregar();
+          else mudou();
+        },
+      );
     }
     if (combateId) {
       mudancas.on("postgres_changes", { event: "*", schema: "public", table: "instancias_combate", filter: `combate_id=eq.${combateId}` }, mudou);

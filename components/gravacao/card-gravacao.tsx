@@ -24,13 +24,16 @@ type Props = {
   mostrar: MostrarGravacao;
   formato: FormatoCard;
   destaque: boolean;
+  // É a vez dele no combate.
+  vez?: boolean;
 };
 
-export function CardGravacao({ dados, mostrar, formato, destaque }: Props) {
+export function CardGravacao({ dados, mostrar, formato, destaque, vez = false }: Props) {
   const classes = [
     "gv-card",
     `gv-card-${formato}`,
     destaque && "gv-card-destaque",
+    vez && "gv-card-vez",
     mostrar.fala && dados.falando && "gv-card-falando",
   ].filter(Boolean).join(" ");
 
@@ -43,6 +46,11 @@ export function CardGravacao({ dados, mostrar, formato, destaque }: Props) {
   return (
     <div className={classes}>
       <div className="gv-card-imagem">
+        {vez && (
+          <span className="gv-card-selo-vez">
+            <i className="fas fa-play" /> Vez
+          </span>
+        )}
         {dados.imagemUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- URL externa (storage), sem otimização do Next
           <img src={dados.imagemUrl} alt="" draggable={false} />

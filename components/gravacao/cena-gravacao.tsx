@@ -33,6 +33,8 @@ type Props = {
   fundoMapa?: ReactNode;
   // Só na prévia: arrastar um card e soltar em cima de outro troca a ordem.
   aoSoltarSobre?: (id: string, alvoId: string) => void;
+  // Card de quem é a vez no combate (ganha a marca em qualquer modo).
+  vez?: string | null;
 };
 
 /**
@@ -40,7 +42,7 @@ type Props = {
  * deixa no tamanho real (overlay). Os cards deslizam e mudam de tamanho a cada
  * layout novo; quem sai do layout some no último lugar em que estava.
  */
-export function CenaGravacao({ layout, dados, mostrar, fundoMapa, aoSoltarSobre }: Props) {
+export function CenaGravacao({ layout, dados, mostrar, fundoMapa, aoSoltarSobre, vez = null }: Props) {
   const visiveis: CardVisivel[] = layout.cards.flatMap((card) =>
     dados[card.id] ? [{ card, dados: dados[card.id] }] : [],
   );
@@ -138,7 +140,13 @@ export function CenaGravacao({ layout, dados, mostrar, fundoMapa, aoSoltarSobre 
             onPointerUp={aoSoltarSobre ? soltar : undefined}
             onPointerCancel={aoSoltarSobre ? () => setArrasto(null) : undefined}
           >
-            <CardGravacao dados={d} mostrar={mostrar(card.id)} formato={card.formato} destaque={card.destaque} />
+            <CardGravacao
+              dados={d}
+              mostrar={mostrar(card.id)}
+              formato={card.formato}
+              destaque={card.destaque}
+              vez={card.id === vez}
+            />
           </div>
         );
       })}

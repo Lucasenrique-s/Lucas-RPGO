@@ -365,6 +365,28 @@
   color: var(--text-sec);
 }
 
+/* ─── Combate ─── */
+.grv-combate-status {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  color: var(--text-sec);
+}
+
+.grv-combate-status i {
+  font-size: 0.55rem;
+}
+
+.grv-combate-status.ativo {
+  color: var(--text-main);
+}
+
+.grv-combate-status.ativo i {
+  color: var(--danger);
+}
+
 /* ─── Mostrar ─── */
 .grv-mostrar {
   display: flex;

@@ -103,6 +103,61 @@
     0 10px 34px rgba(0, 0, 0, 0.5);
 }
 
+/* Vez no combate: borda dourada que respira + selo no canto. */
+.gv-card-vez {
+  box-shadow:
+    0 0 0 3px var(--gv-destaque),
+    0 0 24px color-mix(in oklch, var(--gv-destaque) 55%, transparent),
+    0 10px 34px rgba(0, 0, 0, 0.5);
+  animation: gv-vez 2.4s ease-in-out infinite;
+}
+
+@keyframes gv-vez {
+  50% {
+    box-shadow:
+      0 0 0 3px var(--gv-destaque),
+      0 0 40px color-mix(in oklch, var(--gv-destaque) 75%, transparent),
+      0 10px 34px rgba(0, 0, 0, 0.5);
+  }
+}
+
+.gv-card-selo-vez {
+  position: absolute;
+  z-index: 1;
+  right: 3cqw;
+  bottom: 3cqw;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.4cqw;
+  padding: 0.8cqw 2.6cqw;
+  border-radius: 999px;
+  background: var(--gv-destaque);
+  color: #1b1405;
+  font-size: 4.6cqw;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gv-card-paisagem .gv-card-selo-vez {
+  right: 1.4cqw;
+  bottom: 1.4cqw;
+  padding: 0.4cqw 1.2cqw;
+  gap: 0.6cqw;
+  font-size: 2cqw;
+}
+
+/* Falando ganha da vez (a animação prenderia a borda dourada). */
+.gv-card-vez.gv-card-falando {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gv-card-vez {
+    animation: none;
+  }
+}
+
 .gv-card-falando {
   box-shadow:
     0 0 0 3px var(--gv-fala),

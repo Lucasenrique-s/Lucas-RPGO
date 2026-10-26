@@ -24,7 +24,7 @@ export function OverlayGravacao({ mesaId, token, canal, estadoInicial }: Props) 
   return (
     <div className="gv-overlay">
       <div style={{ transform: `scale(${escala})`, transformOrigin: "0 0" }}>
-        <CenaGravacao layout={cena.layout} dados={cena.dados} mostrar={cena.mostrar} />
+        <CenaGravacao layout={cena.layout} dados={cena.dados} mostrar={cena.mostrar} vez={cena.vez} />
       </div>
     </div>
   );
