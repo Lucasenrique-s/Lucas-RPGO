@@ -67,7 +67,7 @@ export async function carregarEstadoGravacao(mesaId: string, token: string): Pro
   if (!linha || !token || !mesmoToken(linha.token, token)) return null;
   const config = lerConfigGravacao(linha.config);
 
-  const [personagens, sessao, catalogo] = await Promise.all([
+  const [personagens, sessao, catalogo, recebidas] = await Promise.all([
     prisma.personagem.findMany({
       where: { mesaId, molde: false, ...SO_PRINCIPAIS },
       orderBy: { nome: "asc" },
@@ -95,8 +95,11 @@ export async function carregarEstadoGravacao(mesaId: string, token: string): Pro
       },
     }),
     catalogoCondicoesDoNarrador(linha.mesa.userId),
+    // Junto das outras (só os ids), em vez de esperar a lista completa.
+    prisma.personagem
+      .findMany({ where: { mesaId, molde: false, ...SO_PRINCIPAIS }, select: { id: true } })
+      .then((ps) => recebidasDaMesa(mesaId, ps.map((p) => p.id))),
   ]);
-  const recebidas = await recebidasDaMesa(mesaId, personagens.map((p) => p.id));
 
   const combateAtivo = sessao?.combates[0] ?? null;
   const participantes = combateAtivo ? ordenarParticipantes(combateAtivo.participantes) : [];
@@ -125,7 +128,8 @@ export async function carregarEstadoGravacao(mesaId: string, token: string): Pro
       pv: { atual: resumo.hpAtual, max: resumo.hpMax, temp: resumo.hpTemp },
       pp: { atual: resumo.ppAtual, max: resumo.ppMax },
       recursos: p.recursos
-        .filter((r) => escolhidos.has(r.id))
+        // Ponto (PA, PT) não tem barra, igual ao card de subficha.
+        .filter((r) => escolhidos.has(r.id) && r.tipo !== "ponto")
         .map((r) => ({
           id: r.id,
           nome: r.nome,

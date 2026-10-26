@@ -52,6 +52,10 @@ export type ConfigGravacao = {
   // Modo de antes do combate, pra voltar quando ele acabar.
   modoAntesDoCombate: ModoGravacao | null;
   mapa: MapaGravacao;
+  // Quando a tela de gravação mudou (Date.now()). A config nova chega ao
+  // overlay pelo canal antes de ir pro banco: uma busca com versão menor não
+  // desfaz a mudança.
+  versao: number;
 };
 
 // Id do card do narrador no layout (personagens usam o próprio id).
@@ -93,6 +97,7 @@ export const CONFIG_GRAVACAO_PADRAO: ConfigGravacao = {
   auto: { cinematicoNoCombate: false, ordemPorIniciativa: false },
   modoAntesDoCombate: null,
   mapa: { ligado: false, posicao: "direita", encaixe: "ajustar", fonteObs: "Mapa" },
+  versao: 0,
 };
 
 const MODOS = new Set<string>(["narracao", "cinematico", "igualitario", "foco"]);
@@ -179,6 +184,7 @@ export function lerConfigGravacao(raw: unknown): ConfigGravacao {
       encaixe: mapa.encaixe === "preencher" ? "preencher" : "ajustar",
       fonteObs: texto(mapa.fonteObs, p.mapa.fonteObs).trim() || p.mapa.fonteObs,
     },
+    versao: typeof o.versao === "number" && Number.isFinite(o.versao) ? o.versao : 0,
   };
 }
 
@@ -211,8 +217,10 @@ export async function canalDaGravacao(token: string): Promise<string> {
   return `gravacao:${hex}`;
 }
 
-// Eventos do canal. "mudou": algo da mesa mudou, o overlay busca o estado de novo.
+// Eventos do canal. "mudou": algo da mesa mudou, o overlay busca o estado de
+// novo. "config": a config nova inteira, aplicada na hora (sem ir ao banco).
 export const EVENTO_MUDOU = "mudou";
+export const EVENTO_CONFIG = "config";
 
 /** Token do link do OBS: 24 bytes aleatórios em base64url. */
 export function gerarTokenGravacao(): string {

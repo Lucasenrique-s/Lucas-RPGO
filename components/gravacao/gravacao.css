@@ -39,6 +39,25 @@
   pointer-events: none;
 }
 
+/* Prévia: arrastar um card e soltar em cima de outro troca a ordem. */
+.gv-cena-arrastavel .gv-slot {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.gv-cena-arrastavel .gv-slot.gv-slot-arrastando {
+  z-index: 10;
+  cursor: grabbing;
+  opacity: 0.85;
+  transition: none;
+}
+
+.gv-slot-alvo .gv-card {
+  outline: 4px dashed var(--gv-destaque);
+  outline-offset: 6px;
+}
+
 @keyframes gv-entra {
   from { opacity: 0; scale: 0.9; }
 }

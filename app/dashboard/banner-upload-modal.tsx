@@ -10,9 +10,20 @@ type Props = {
   aberto: boolean;
   onFechar: () => void;
   onUpload: (bannerUrl: string) => void;
+  // Padrão: banner da mesa (16:6). A imagem do narrador na gravação usa 16:9.
+  aspecto?: number;
+  titulo?: string;
+  prefixoArquivo?: string;
 };
 
-export function BannerUploadModal({ aberto, onFechar, onUpload }: Props) {
+export function BannerUploadModal({
+  aberto,
+  onFechar,
+  onUpload,
+  aspecto = 16 / 6,
+  titulo = "Adicionar Banner",
+  prefixoArquivo = "mesa_banner",
+}: Props) {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -78,7 +89,7 @@ export function BannerUploadModal({ aberto, onFechar, onUpload }: Props) {
       try {
         const blob = await recortarParaBlob(imgSrc, pixelCrop, 1200);
         const supabase = createClient();
-        const fileName = `mesa_banner_${Date.now()}.png`;
+        const fileName = `${prefixoArquivo}_${Date.now()}.png`;
 
         const { error } = await supabase.storage
           .from("avatars")
@@ -90,7 +101,7 @@ export function BannerUploadModal({ aberto, onFechar, onUpload }: Props) {
 
         Swal.fire({
           icon: "success",
-          title: "Banner enviado!",
+          title: "Imagem enviada!",
           timer: 1200,
           showConfirmButton: false,
           background: "var(--bg-card)",
@@ -116,7 +127,7 @@ export function BannerUploadModal({ aberto, onFechar, onUpload }: Props) {
   return (
     <div className="modal-overlay-mesa modal-overlay-banner" onClick={fechar}>
       <div className="modal-content-mesa auth-card modal-banner-upload" onClick={(e) => e.stopPropagation()}>
-        <h2 style={{ color: "var(--primary)", marginBottom: 10 }}>Adicionar Banner</h2>
+        <h2 style={{ color: "var(--primary)", marginBottom: 10 }}>{titulo}</h2>
         <p className="banner-upload-help">Cole, arraste uma imagem ou clique para selecionar.</p>
 
         {!imgSrc && (
@@ -153,7 +164,7 @@ export function BannerUploadModal({ aberto, onFechar, onUpload }: Props) {
                 image={imgSrc}
                 crop={crop}
                 zoom={zoom}
-                aspect={16 / 6}
+                aspect={aspecto}
                 cropShape="rect"
                 showGrid={false}
                 onCropChange={setCrop}
