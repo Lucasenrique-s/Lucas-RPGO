@@ -156,6 +156,16 @@ export function NarradorShell({
             >
               <i className="fas fa-pen" /> <span>Editar mesa</span>
             </button>
+            {/* Aba própria: ela fica aberta enquanto grava (avisa o overlay do OBS). */}
+            <a
+              href={`/narrador/${mesa.id}/gravacao`}
+              target="_blank"
+              rel="noopener"
+              className="narrador-editar"
+              title="Overlay de gravação para o OBS"
+            >
+              <i className="fas fa-video" /> <span>Gravação</span>
+            </a>
             <CopyCodigoBadge codigo={mesa.codigoAcesso} />
             <ThemeButton />
           </div>

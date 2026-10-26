@@ -1,0 +1,22 @@
+/* Overlay do OBS: a página inteira transparente (o layout raiz pinta o body
+   com a cor do tema) e sem barra de rolagem. */
+html:has(.gv-overlay),
+html:has(.gv-overlay) body {
+  background: transparent !important;
+  overflow: hidden;
+}
+
+.gv-overlay {
+  position: fixed;
+  inset: 0;
+}
+
+.gv-overlay-erro {
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  font: 600 28px/1.4 Inter, system-ui, sans-serif;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}

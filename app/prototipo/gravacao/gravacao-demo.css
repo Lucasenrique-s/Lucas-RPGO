@@ -1,0 +1,221 @@
+.gvd-pagina {
+  min-height: 100vh;
+  padding: 20px 24px 40px;
+  background: var(--bg-page);
+  color: var(--text-main);
+}
+
+.gvd-topo h1 {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+}
+
+.gvd-topo p {
+  margin: 0 0 16px;
+  color: var(--text-sec);
+  font-size: 0.9rem;
+}
+
+.gvd-corpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .gvd-corpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ─── Prévia ─── */
+.gvd-previa {
+  position: sticky;
+  top: 16px;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.gvd-fundo-xadrez {
+  background-color: #2a2d33;
+  background-image:
+    linear-gradient(45deg, #34383f 25%, transparent 25%),
+    linear-gradient(-45deg, #34383f 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #34383f 75%),
+    linear-gradient(-45deg, transparent 75%, #34383f 75%);
+  background-size: 32px 32px;
+  background-position: 0 0, 0 16px, 16px -16px, -16px 0;
+}
+
+.gvd-fundo-escuro {
+  background: linear-gradient(135deg, #0f1a2b, #2b1631);
+}
+
+.gvd-fundo-claro {
+  background: linear-gradient(135deg, #f5efe2, #d9e7f2);
+}
+
+/* Mapa de mentira 3:2 dentro do retângulo 16:9 do mapa. */
+.gvd-mapa {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: #0d0f14;
+}
+
+.gvd-mapa-conteudo {
+  position: relative;
+  aspect-ratio: 3 / 2;
+  background-color: #3d5a3a;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.25) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.25) 1px, transparent 1px),
+    radial-gradient(circle at 30% 40%, #5b7b4f, transparent 45%),
+    radial-gradient(circle at 75% 65%, #2f5f7a, transparent 35%);
+  background-size: 48px 48px, 48px 48px, 100% 100%, 100% 100%;
+}
+
+.gvd-mapa-ajustar .gvd-mapa-conteudo {
+  height: 100%;
+  max-width: 100%;
+}
+
+.gvd-mapa-preencher .gvd-mapa-conteudo {
+  width: 100%;
+  min-height: 100%;
+}
+
+.gvd-token {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.gvd-token-grande {
+  width: 92px;
+  height: 92px;
+}
+
+.gvd-mapa-rotulo {
+  position: absolute;
+  left: 20px;
+  bottom: 16px;
+  font-size: 28px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ─── Controles ─── */
+.gvd-controles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gvd-secao {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gvd-secao h2 {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-sec);
+}
+
+.gvd-secao button {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.gvd-secao button.ativo {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+
+.gvd-grupo,
+.gvd-chips,
+.gvd-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.gvd-contagem {
+  min-width: 90px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.gvd-caixa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.gvd-ciclo {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.gvd-dica {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-sec);
+}
+
+.gvd-atalhos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gvd-pagina kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  background: var(--bg-surface);
+  font-family: inherit;
+  font-size: 0.75rem;
+  text-align: center;
+  color: var(--text-sec);
+}
+
+.gvd-secao button.ativo kbd {
+  background: transparent;
+  color: inherit;
+  border-color: currentColor;
+}

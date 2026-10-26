@@ -49,8 +49,45 @@ model Mesa {
   calendario   Calendario?
   ameacas      Ameaca[]
   sessoes      Sessao[]
+  gravacao     ConfigGravacao?
+  vinculosDiscord VinculoDiscord[]
 
   @@map("mesas")
+}
+
+// Overlay de gravação no OBS (docs/plano-gravacao-obs.md). Uma por mesa,
+// criada quando o narrador abre a tela de gravação. `token` vai na URL do
+// overlay (o OBS não tem login); trocar o token derruba o link antigo.
+model ConfigGravacao {
+  id     String @id @default(uuid())
+  mesaId String @unique @map("mesa_id")
+  mesa   Mesa   @relation(fields: [mesaId], references: [id], onDelete: Cascade)
+
+  token  String @unique
+  // Modo, toggles, ordem, mapa… (lib/gravacao.ts: lerConfigGravacao).
+  config Json   @default("{}")
+
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@map("configs_gravacao")
+}
+
+// Pessoa do Discord ↔ personagem na gravação. Vínculo manual do narrador;
+// o automático (conta com Discord conectado) não grava aqui. `personagemId`
+// null = ligado a ninguém (não aparece no layout).
+model VinculoDiscord {
+  id            String @id @default(uuid())
+  mesaId        String @map("mesa_id")
+  mesa          Mesa   @relation(fields: [mesaId], references: [id], onDelete: Cascade)
+  discordUserId String @map("discord_user_id")
+  personagemId  String? @map("personagem_id")
+  // "narrador" | "jogador"
+  papel         String @default("jogador")
+  apelido       String @default("")
+  avatarUrl     String? @map("avatar_url")
+
+  @@unique([mesaId, discordUserId])
+  @@map("vinculos_discord")
 }
 
 model Ameaca {

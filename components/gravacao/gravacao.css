@@ -1,0 +1,250 @@
+/* Overlay de gravação (docs/plano-gravacao-obs.md). Palco 1920×1080 de fundo
+   transparente; os tamanhos de dentro do card são em cqw (largura do card),
+   então o mesmo card serve grande (destaque) e pequeno (faixa). */
+
+.gv-cena {
+  --gv-transicao: 450ms;
+  --gv-curva: cubic-bezier(0.4, 0, 0.2, 1);
+  --gv-fundo-card: rgba(14, 16, 22, 0.82);
+  --gv-borda: rgba(255, 255, 255, 0.16);
+  --gv-destaque: #d4af37;
+  --gv-fala: #43b581;
+
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  font-family: Inter, system-ui, sans-serif;
+  color: #fff;
+}
+
+/* ─── Posições (deslizam e mudam de tamanho a cada layout) ─── */
+.gv-slot,
+.gv-mapa-fundo,
+.gv-mapa-moldura {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition:
+    transform var(--gv-transicao) var(--gv-curva),
+    width var(--gv-transicao) var(--gv-curva),
+    height var(--gv-transicao) var(--gv-curva);
+}
+
+.gv-slot {
+  animation: gv-entra var(--gv-transicao) var(--gv-curva);
+}
+
+.gv-slot-saindo {
+  animation: gv-sai var(--gv-transicao) var(--gv-curva) forwards;
+  pointer-events: none;
+}
+
+@keyframes gv-entra {
+  from { opacity: 0; scale: 0.9; }
+}
+
+@keyframes gv-sai {
+  to { opacity: 0; scale: 0.9; }
+}
+
+/* ─── Mapa: moldura com o miolo vazado (a fonte do OBS fica por baixo) ─── */
+.gv-mapa-fundo {
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.gv-mapa-moldura {
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 2px var(--gv-borda),
+    0 0 0 6px rgba(14, 16, 22, 0.55),
+    0 10px 30px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+/* ─── Card ─────────────────────────────────────────────────── */
+.gv-card {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--gv-fundo-card);
+  box-shadow:
+    0 0 0 1.5px var(--gv-borda),
+    0 10px 30px rgba(0, 0, 0, 0.45);
+  transition: box-shadow 200ms ease;
+}
+
+.gv-card-destaque {
+  box-shadow:
+    0 0 0 2px var(--gv-destaque),
+    0 10px 34px rgba(0, 0, 0, 0.5);
+}
+
+.gv-card-falando {
+  box-shadow:
+    0 0 0 3px var(--gv-fala),
+    0 0 26px color-mix(in oklch, var(--gv-fala) 70%, transparent),
+    0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.gv-card-imagem {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: #1b1f29;
+}
+
+.gv-card-imagem img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gv-card-sem-imagem {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 35%, #333b4d, #151821 75%);
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 32cqw;
+}
+
+.gv-card-paisagem .gv-card-sem-imagem {
+  font-size: 12cqw;
+}
+
+/* Condições: chips no canto de cima da imagem. */
+.gv-card-condicoes {
+  position: absolute;
+  top: 3cqw;
+  left: 3cqw;
+  right: 3cqw;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.6cqw;
+}
+
+.gv-condicao {
+  padding: 0.8cqw 2.6cqw;
+  border-radius: 999px;
+  font-size: 4.6cqw;
+  font-weight: 700;
+  line-height: 1.2;
+  /* Sobre a foto: fundo escuro por baixo do tom da condição. */
+  background-color: rgba(14, 16, 22, 0.78);
+  backdrop-filter: blur(2px);
+}
+
+/* ─── Rodapé: nome e barras ───────────────────────────────── */
+.gv-card-rodape {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.2cqw;
+  padding: 3.4cqw 4cqw 4cqw;
+}
+
+.gv-card-nome {
+  font-size: 8cqw;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.gv-card-paisagem .gv-card-rodape {
+  padding: 1.4cqw 2cqw;
+}
+
+.gv-card-paisagem .gv-card-nome {
+  font-size: 3.2cqw;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gv-barra {
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+  font-size: 5cqw;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gv-barra-rotulo {
+  flex: 0 0 auto;
+  width: 6cqw;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.gv-barra-recurso .gv-barra-rotulo {
+  width: auto;
+  max-width: 30cqw;
+  font-size: 4.2cqw;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gv-barra-trilho {
+  position: relative;
+  flex: 1 1 auto;
+  height: 3.4cqw;
+  min-height: 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.gv-barra-recurso .gv-barra-trilho {
+  height: 2.4cqw;
+}
+
+.gv-barra-fio,
+.gv-barra-fio-temp {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+  transition:
+    width 400ms var(--gv-curva),
+    left 400ms var(--gv-curva);
+}
+
+.gv-barra-fio-temp {
+  background: var(--bar-hp-temp, #f1c40f);
+}
+
+.gv-barra-numero {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.gv-barra-temp {
+  color: var(--bar-hp-temp, #f1c40f);
+}
+
+.gv-barra-max {
+  opacity: 0.6;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gv-cena {
+    --gv-transicao: 0ms;
+  }
+}
