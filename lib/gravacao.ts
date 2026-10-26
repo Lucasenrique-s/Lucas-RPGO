@@ -246,6 +246,8 @@ export async function canalDaGravacao(token: string): Promise<string> {
 // novo. "config": a config nova inteira, aplicada na hora (sem ir ao banco).
 export const EVENTO_MUDOU = "mudou";
 export const EVENTO_CONFIG = "config";
+// Do overlay pra tela: como está a conexão com o OBS (lib/obs-mapa.ts).
+export const EVENTO_OBS = "obs";
 
 /** Token do link do OBS: 24 bytes aleatórios em base64url. */
 export function gerarTokenGravacao(): string {

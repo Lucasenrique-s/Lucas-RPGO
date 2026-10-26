@@ -316,8 +316,8 @@ export function DemoGravacao() {
               ))}
             </div>
             <p className="gvd-dica">
-              <kbd>⇧M</kbd> troca a posição. &quot;No lugar do narrador&quot; vale no modo Narração; nos outros vira
-              Centro.
+              <kbd>⇧M</kbd> troca a posição. &quot;No lugar do narrador&quot;: o card do narrador sai e o mapa fica com o
+              espaço grande dele na Narração (nos outros modos, no Centro).
             </p>
             <div className="gvd-grupo">
               {(["ajustar", "preencher"] as const).map((e) => (

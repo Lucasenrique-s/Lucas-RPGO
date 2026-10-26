@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BannerUploadModal } from "@/app/dashboard/banner-upload-modal";
 import { CenaGravacao } from "@/components/gravacao/cena-gravacao";
@@ -8,6 +8,8 @@ import { montarCena } from "@/components/gravacao/montar-cena";
 import { useEstadoGravacao } from "@/components/gravacao/use-estado-gravacao";
 import {
   EVENTO_CONFIG,
+  EVENTO_OBS,
+  POSICOES_MAPA,
   EVENTO_MUDOU,
   ID_NARRADOR,
   MODOS_GRAVACAO,
@@ -22,6 +24,7 @@ import {
 } from "@/lib/gravacao";
 import type { EstadoGravacao } from "@/lib/gravacao-servidor";
 import { ALTURA_TELA, LARGURA_TELA } from "@/lib/layout-gravacao";
+import type { StatusObs } from "@/lib/obs-mapa";
 import { canal as canalUnico } from "@/lib/supabase/canal";
 import { createClient } from "@/lib/supabase/client";
 import { useReordenar } from "@/lib/use-reordenar";
@@ -61,7 +64,7 @@ export function TelaGravacao({
   // Sem canal: quem avisa o overlay é esta tela, que recarrega a própria prévia.
   const [estadoVivo, recarregar] = useEstadoGravacao(mesa.id, token, null, estadoInicial);
   const personagemIds = useMemo(() => (estadoVivo ?? estadoInicial).personagens.map((p) => p.id), [estadoVivo, estadoInicial]);
-  const { ligado, enviarConfig } = useRepasseAoOverlay({
+  const { ligado, enviarConfig, obs } = useRepasseAoOverlay({
     mesaId: mesa.id,
     canal,
     personagemIds,
@@ -69,6 +72,8 @@ export function TelaGravacao({
     combateId,
     aoMudar: recarregar,
   });
+
+  const [senhaObs, setSenhaObs] = useSenhaObsLocal();
 
   // A config é desta tela: muda na hora aqui e vai pro banco logo depois.
   const [config, setConfig] = useState(estadoInicial.config);
@@ -155,6 +160,12 @@ export function TelaGravacao({
               dados={cena.dados}
               mostrar={cena.mostrar}
               vez={cena.vez}
+              fundoMapa={
+                <div className="grv-mapa-previa">
+                  <i className="fas fa-map" /> Mapa do VTT
+                  <small>fonte &quot;{config.mapa.fonteObs}&quot; do OBS</small>
+                </div>
+              }
               aoSoltarSobre={moverPara}
             />
           </Previa>
@@ -265,11 +276,14 @@ export function TelaGravacao({
               <li><kbd>⇧N</kbd> narrador no Foco · <kbd>0</kbd> limpa a seleção</li>
               <li><kbd>N</kbd> nome · <kbd>V</kbd> PV · <kbd>P</kbd> PP</li>
               <li><kbd>R</kbd> recursos · <kbd>C</kbd> condições · <kbd>F</kbd> fala</li>
+              <li><kbd>M</kbd> mapa · <kbd>⇧M</kbd> posição do mapa</li>
             </ul>
             <p className="grv-dica">Funcionam com esta aba em foco.</p>
           </Secao>
 
-          <LinkDoObs mesaId={mesa.id} linkObs={linkObs} />
+          <MapaDoVtt config={config} mudar={mudar} obs={obs} senha={senhaObs} aoMudarSenha={setSenhaObs} />
+
+          <LinkDoObs mesaId={mesa.id} linkObs={senhaObs ? `${linkObs}#obs=${encodeURIComponent(senhaObs)}` : linkObs} />
         </aside>
       </div>
     </div>
@@ -597,6 +611,169 @@ function MostrarEditor({
   );
 }
 
+// ─── Mapa do VTT (Fase 6) ─────────────────────────────────────────────────
+
+// Sem notícia do overlay há mais que isso: ele não está aberto no OBS.
+const STATUS_VELHO = 15000;
+
+function MapaDoVtt({
+  config,
+  mudar,
+  obs,
+  senha,
+  aoMudarSenha,
+}: {
+  config: ConfigGravacao;
+  mudar: (f: (c: ConfigGravacao) => ConfigGravacao) => void;
+  obs: { status: StatusObs; em: number } | null;
+  senha: string;
+  aoMudarSenha: (s: string) => void;
+}) {
+  const mapa = config.mapa;
+  const mudarMapa = (patch: Partial<ConfigGravacao["mapa"]>) => mudar((c) => ({ ...c, mapa: { ...c.mapa, ...patch } }));
+  const agora = useAgora(5000);
+  const status = obs && agora - obs.em < STATUS_VELHO ? obs.status : null;
+
+  return (
+    <Secao titulo="Mapa do VTT" icone="fa-map">
+      <label className="grv-caixa">
+        <input type="checkbox" checked={mapa.ligado} onChange={(e) => mudarMapa({ ligado: e.target.checked })} />
+        Espaço do mapa
+        <kbd>M</kbd>
+      </label>
+      <div className="grv-grupo">
+        {POSICOES_MAPA.map((p) => (
+          <button
+            key={p.slug}
+            type="button"
+            className={`grv-opcao pequena${mapa.posicao === p.slug ? " ativo" : ""}`}
+            onClick={() => mudarMapa({ posicao: p.slug, ligado: true })}
+          >
+            {p.nome}
+          </button>
+        ))}
+      </div>
+      <p className="grv-dica">
+        <kbd>⇧M</kbd> troca a posição. &quot;No lugar do narrador&quot;: o card do narrador sai e o mapa fica com o espaço
+        grande dele na Narração (nos outros modos, no Centro).
+      </p>
+      <div className="grv-grupo">
+        {(["ajustar", "preencher"] as const).map((e) => (
+          <button
+            key={e}
+            type="button"
+            className={`grv-opcao pequena${mapa.encaixe === e ? " ativo" : ""}`}
+            onClick={() => mudarMapa({ encaixe: e })}
+          >
+            {e === "ajustar" ? "Ajustar (cabe inteiro)" : "Preencher (corta as sobras)"}
+          </button>
+        ))}
+      </div>
+      <label className="grv-campo">
+        <span>Nome da fonte do mapa no OBS</span>
+        <input type="text" maxLength={80} value={mapa.fonteObs} onChange={(e) => mudarMapa({ fonteObs: e.target.value })} />
+      </label>
+      <label className="grv-campo">
+        <span>Senha do WebSocket do OBS (fica só neste PC e vai no fim do link)</span>
+        <input
+          type="password"
+          autoComplete="off"
+          value={senha}
+          onChange={(e) => aoMudarSenha(e.target.value)}
+          placeholder="Vazio se o WebSocket estiver sem senha"
+        />
+      </label>
+
+      <p className={`grv-obs-status grv-obs-${status ? (status.conexao === "erro" || status.fonte === "nao-encontrada" ? "erro" : status.conexao) : "sem"}`}>
+        <i className="fas fa-circle" />{" "}
+        {!status
+          ? mapa.ligado
+            ? "O overlay no OBS ainda não respondeu. Ele precisa estar aberto como fonte de navegador no OBS."
+            : "Ligue o espaço do mapa pra o overlay conectar no OBS."
+          : status.conexao === "erro"
+            ? status.erro
+            : status.conexao === "conectando"
+              ? "Conectando no OBS…"
+              : status.fonte === "nao-encontrada"
+                ? `Não achei a fonte "${mapa.fonteObs}" na cena "${status.cena}".`
+                : status.fonte === "escondida"
+                  ? `Mapa desligado: a fonte "${mapa.fonteObs}" está escondida.`
+                  : status.fonte === "ok"
+                    ? `Fonte "${mapa.fonteObs}" na cena "${status.cena}" acompanhando o layout.`
+                    : (status.erro ?? "Conectado no OBS.")}
+      </p>
+
+      <details className="grv-detalhes">
+        <summary>Como montar no OBS</summary>
+        <ol className="grv-passos">
+          <li>
+            <b>Ferramentas → Configurações do servidor WebSocket</b>: marque <b>Ativar servidor WebSocket</b> (porta 4455).
+            Se usar senha, coloque aqui em cima.
+          </li>
+          <li>
+            Crie a fonte do mapa (<b>Captura de Janela</b> do VTT ou <b>Navegador</b>) com o nome <b>{mapa.fonteObs}</b>.
+          </li>
+          <li>
+            Se capturou a janela do navegador, corte as abas e a barra de endereço (<b>Alt</b> + arrastar a borda): o
+            overlay mantém esse corte.
+          </li>
+          <li>Deixe ela <b>abaixo</b> do overlay na lista de fontes da cena.</li>
+          <li>Copie o link do OBS de novo (ele leva a senha) e cole na fonte do overlay.</li>
+        </ol>
+      </details>
+    </Secao>
+  );
+}
+
+// Senha do WebSocket do OBS: só no navegador de quem grava, nunca no banco.
+const CHAVE_SENHA = "gravacao-obs-senha";
+
+const ouvintesSenha = new Set<() => void>();
+// Sem localStorage (bloqueado): a senha vale só enquanto a página está aberta.
+let senhaNaMemoria = "";
+
+function lerSenhaObs(): string {
+  try {
+    return localStorage.getItem(CHAVE_SENHA) ?? "";
+  } catch {
+    return senhaNaMemoria;
+  }
+}
+
+function gravarSenhaObs(s: string) {
+  senhaNaMemoria = s;
+  try {
+    if (s) localStorage.setItem(CHAVE_SENHA, s);
+    else localStorage.removeItem(CHAVE_SENHA);
+  } catch {
+    // Fica só em `senhaNaMemoria`.
+  }
+  ouvintesSenha.forEach((avisar) => avisar());
+}
+
+function useSenhaObsLocal(): [string, (s: string) => void] {
+  const senha = useSyncExternalStore(
+    (avisar) => {
+      ouvintesSenha.add(avisar);
+      return () => ouvintesSenha.delete(avisar);
+    },
+    lerSenhaObs,
+    // No servidor não tem senha; o navegador lê a dele na hidratação.
+    () => "",
+  );
+  return [senha, gravarSenhaObs];
+}
+
+// Relógio que anda a cada `ms`, pra textos que dependem de "há quanto tempo".
+function useAgora(ms: number) {
+  const [agora, setAgora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), ms);
+    return () => clearInterval(t);
+  }, [ms]);
+  return agora;
+}
+
 // ─── Link do OBS ──────────────────────────────────────────────────────────
 
 function LinkDoObs({ mesaId, linkObs }: { mesaId: string; linkObs: string }) {
@@ -711,12 +888,20 @@ function useAtalhos(
           ...x,
           foco: x.foco.includes(ID_NARRADOR) ? x.foco.filter((y) => y !== ID_NARRADOR) : [...x.foco, ID_NARRADOR],
         }));
+      } else if (e.shiftKey && e.code === "KeyM") {
+        // Próxima posição do mapa (e liga, se estava desligado).
+        mudar((x) => {
+          const i = POSICOES_MAPA.findIndex((p) => p.slug === x.mapa.posicao);
+          return { ...x, mapa: { ...x.mapa, ligado: true, posicao: POSICOES_MAPA[(i + 1) % POSICOES_MAPA.length].slug } };
+        });
       } else if (e.shiftKey) {
         return;
       } else if (digito === "0") {
         mudar((x) => ({ ...x, [campo]: [] }));
       } else if (digito && Number(digito) <= MODOS_GRAVACAO.length) {
         escolherModo(MODOS_GRAVACAO[Number(digito) - 1].slug);
+      } else if (e.code === "KeyM") {
+        mudar((x) => ({ ...x, mapa: { ...x.mapa, ligado: !x.mapa.ligado } }));
       } else {
         const mostrar = c.mostrar;
         const patch: Partial<MostrarGravacao> | null =
@@ -759,6 +944,8 @@ function useRepasseAoOverlay({
 }) {
   const router = useRouter();
   const [ligado, setLigado] = useState(false);
+  // Último status do OBS que o overlay mandou, com a hora em que chegou.
+  const [obs, setObs] = useState<{ status: StatusObs; em: number } | null>(null);
   const enviarRef = useRef<(config: ConfigGravacao) => void>(() => {});
   const ids = personagemIds.join(",");
 
@@ -768,7 +955,12 @@ function useRepasseAoOverlay({
     let pendente: ReturnType<typeof setTimeout> | null = null;
 
     // Nome exato: o overlay assina o mesmo.
-    const aviso = supabase.channel(canal);
+    const aviso = supabase
+      .channel(canal)
+      .on("broadcast", { event: EVENTO_OBS }, ({ payload }) => {
+        const status = (payload as { status?: StatusObs } | undefined)?.status;
+        if (status) setObs({ status, em: Date.now() });
+      });
     aviso.subscribe((status) => {
       pronto = status === "SUBSCRIBED";
       setLigado(pronto);
@@ -827,5 +1019,5 @@ function useRepasseAoOverlay({
 
   // Estável: lê o enviador do efeito atual.
   const [enviarConfig] = useState(() => (config: ConfigGravacao) => enviarRef.current(config));
-  return { ligado, enviarConfig };
+  return { ligado, enviarConfig, obs };
 }

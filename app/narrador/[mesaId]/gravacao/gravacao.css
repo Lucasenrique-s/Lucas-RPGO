@@ -387,6 +387,63 @@
   color: var(--danger);
 }
 
+/* ─── Mapa do VTT ─── */
+/* Na prévia: o lugar do mapa (no OBS é a fonte de baixo). */
+.grv-mapa-previa {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.04) 0 24px, transparent 24px 48px),
+    rgba(30, 60, 40, 0.55);
+  color: rgba(255, 255, 255, 0.75);
+  font: 700 44px/1.2 Inter, system-ui, sans-serif;
+}
+
+.grv-mapa-previa small {
+  font-size: 26px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.grv-obs-status {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-sec);
+}
+
+.grv-obs-status i {
+  font-size: 0.55rem;
+}
+
+.grv-obs-conectado i {
+  color: var(--success);
+}
+
+.grv-obs-conectando i {
+  color: var(--warning);
+}
+
+.grv-obs-erro {
+  color: var(--danger);
+}
+
+.grv-detalhes summary {
+  cursor: pointer;
+  font-size: 0.86rem;
+  color: var(--text-sec);
+}
+
+.grv-detalhes .grv-passos {
+  margin-top: 6px;
+}
+
 /* ─── Mostrar ─── */
 .grv-mostrar {
   display: flex;

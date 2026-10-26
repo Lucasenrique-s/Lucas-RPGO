@@ -21,10 +21,11 @@ export function useEstadoGravacao(
   token: string,
   canal: string | null,
   inicial: EstadoGravacao,
-): [EstadoGravacao | null, () => void] {
+): [EstadoGravacao | null, () => void, (evento: string, payload: Record<string, unknown>) => void] {
   const [estado, setEstado] = useState<EstadoGravacao | null>(inicial);
   const ultimo = useRef(JSON.stringify(inicial));
   const agendarRef = useRef<() => void>(() => {});
+  const enviarRef = useRef<(evento: string, payload: Record<string, unknown>) => void>(() => {});
 
   useEffect(() => {
     let vivo = true;
@@ -73,11 +74,16 @@ export function useEstadoGravacao(
       .on("broadcast", { event: EVENTO_MUDOU }, agendar)
       .on("broadcast", { event: EVENTO_CONFIG }, aplicarConfig)
       .subscribe();
+    // Mensagem do overlay pra tela (status do OBS).
+    enviarRef.current = (evento, payload) => {
+      if (channel) void channel.send({ type: "broadcast", event: evento, payload });
+    };
     const intervalo = setInterval(buscar, INTERVALO_BUSCA);
 
     return () => {
       vivo = false;
       agendarRef.current = () => {};
+      enviarRef.current = () => {};
       clearInterval(intervalo);
       if (pendente) clearTimeout(pendente);
       if (supabase && channel) supabase.removeChannel(channel);
@@ -86,5 +92,6 @@ export function useEstadoGravacao(
 
   // Estável: lê o agendador do efeito atual.
   const [recarregar] = useState(() => () => agendarRef.current());
-  return [estado, recarregar];
+  const [enviar] = useState(() => (evento: string, payload: Record<string, unknown>) => enviarRef.current(evento, payload));
+  return [estado, recarregar, enviar];
 }

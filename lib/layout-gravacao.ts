@@ -21,8 +21,6 @@ const PROPORCAO_PAISAGEM = 0.66;
 const LARGURA_MAX_RETRATO = 440;
 const LARGURA_MAX_PAISAGEM = 1100;
 
-// Fração da região dos cards que vai pros destaques.
-const FRACAO_DESTAQUE = 0.62;
 // Frações testadas pelo arranjo dos destaques (1 = altura toda, só no "U").
 const FRACOES_DESTAQUE = [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 1];
 // Quantas vezes o destaque é mais largo que os demais, no mínimo, pra contar
@@ -85,14 +83,19 @@ export function calcularLayout(entrada: EntradaLayout): SaidaLayout {
   const mapaLigado = !!e.mapa?.ligado;
   const posicao = e.mapa?.posicao ?? "direita";
 
-  // Mapa no lugar do narrador: só faz sentido na Narração (nos outros modos
-  // não há espaço do narrador, então vira Centro). O narrador vira card comum.
-  if (mapaLigado && posicao === "narrador" && e.modo === "narracao") {
-    const [cima, baixo] = dividir(TELA, FRACAO_DESTAQUE, "vertical");
-    return {
-      mapa: encaixar(cima, 16 / 9),
-      cards: grade(baixo, e.cards, "retrato", false),
-    };
+  // Mapa no lugar do narrador: o card do narrador sai e o mapa fica com o
+  // espaço dele. Na Narração é o espaço grande (os jogadores em volta, igual
+  // ao narrador); nos outros modos o narrador não tem espaço próprio e o mapa
+  // vai pro Centro.
+  if (mapaLigado && posicao === "narrador") {
+    const jogadores = e.cards.filter((id) => id !== e.idNarrador);
+    if (e.modo === "narracao") {
+      // Arranja como se o narrador estivesse lá e põe o mapa no lugar dele.
+      const comLugar = calcularLayout({ ...e, cards: [e.idNarrador, ...jogadores], mapa: null });
+      const lugar = comLugar.cards.find((c) => c.id === e.idNarrador)!;
+      return { mapa: encaixar(lugar, 16 / 9), cards: comLugar.cards.filter((c) => c.id !== e.idNarrador) };
+    }
+    return calcularLayout({ ...e, cards: jogadores, mapa: { ligado: true, posicao: "centro" } });
   }
 
   let regiao = TELA;
