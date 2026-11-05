@@ -114,13 +114,20 @@ export function CenaGravacao({ layout, dados, mostrar, fundoMapa, aoSoltarSobre,
               {fundoMapa}
             </div>
           )}
-          <div className="gv-mapa-moldura" style={posicao(layout.mapa)} />
+          {/* Mapa como foto do narrador: a moldura é o próprio card. */}
+          {!layout.cards.some((c) => c.comMapa) && <div className="gv-mapa-moldura" style={posicao(layout.mapa)} />}
         </>
       )}
 
       {saindo.map(({ card, dados: d }) => (
         <div key={`saindo-${card.id}`} className="gv-slot gv-slot-saindo" style={posicao(card)}>
-          <CardGravacao dados={d} mostrar={mostrar(card.id)} formato={card.formato} destaque={card.destaque} />
+          <CardGravacao
+            dados={d}
+            mostrar={mostrar(card.id)}
+            formato={card.formato}
+            destaque={card.destaque}
+            comMapa={card.comMapa}
+          />
         </div>
       ))}
 
@@ -146,6 +153,7 @@ export function CenaGravacao({ layout, dados, mostrar, fundoMapa, aoSoltarSobre,
               formato={card.formato}
               destaque={card.destaque}
               vez={card.id === vez}
+              comMapa={card.comMapa}
             />
           </div>
         );

@@ -103,6 +103,26 @@
     0 10px 34px rgba(0, 0, 0, 0.5);
 }
 
+/* Narrador com o mapa como foto: a imagem é a fonte do OBS por baixo (miolo
+   vazado, 16:9 exato) e o nome numa faixa embaixo. A altura da faixa é a
+   RODAPE_CARD_MAPA de lib/layout-gravacao.ts (7% da largura). */
+.gv-card-com-mapa {
+  background: transparent;
+}
+
+.gv-card-com-mapa .gv-card-imagem {
+  flex: none;
+  aspect-ratio: 16 / 9;
+  background: transparent;
+}
+
+.gv-card-com-mapa .gv-card-rodape {
+  flex: 1 1 auto;
+  justify-content: center;
+  padding: 0 2cqw;
+  background: var(--gv-fundo-card);
+}
+
 /* Vez no combate: borda dourada que respira + selo no canto. */
 .gv-card-vez {
   box-shadow:

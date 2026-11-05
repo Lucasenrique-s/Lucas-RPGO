@@ -26,14 +26,18 @@ type Props = {
   destaque: boolean;
   // É a vez dele no combate.
   vez?: boolean;
+  // Narrador com o mapa no lugar da foto: a área da imagem fica vazada (a
+  // fonte do OBS aparece por baixo) e o nome vai na faixa de baixo.
+  comMapa?: boolean;
 };
 
-export function CardGravacao({ dados, mostrar, formato, destaque, vez = false }: Props) {
+export function CardGravacao({ dados, mostrar, formato, destaque, vez = false, comMapa = false }: Props) {
   const classes = [
     "gv-card",
     `gv-card-${formato}`,
     destaque && "gv-card-destaque",
     vez && "gv-card-vez",
+    comMapa && "gv-card-com-mapa",
     mostrar.fala && dados.falando && "gv-card-falando",
   ].filter(Boolean).join(" ");
 
@@ -51,7 +55,7 @@ export function CardGravacao({ dados, mostrar, formato, destaque, vez = false }:
             <i className="fas fa-play" /> Vez
           </span>
         )}
-        {dados.imagemUrl ? (
+        {comMapa ? null : dados.imagemUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- URL externa (storage), sem otimização do Next
           <img src={dados.imagemUrl} alt="" draggable={false} />
         ) : (
@@ -73,7 +77,7 @@ export function CardGravacao({ dados, mostrar, formato, destaque, vez = false }:
         )}
       </div>
 
-      {(mostrar.nome || temBarras) && (
+      {(mostrar.nome || temBarras || comMapa) && (
         <div className="gv-card-rodape">
           {mostrar.nome && <div className="gv-card-nome">{dados.nome}</div>}
           {!dados.narrador && dados.pv && mostrar.pv !== "oculto" && (

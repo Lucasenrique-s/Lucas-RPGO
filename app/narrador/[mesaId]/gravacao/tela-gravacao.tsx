@@ -276,7 +276,7 @@ export function TelaGravacao({
               <li><kbd>⇧N</kbd> narrador no Foco · <kbd>0</kbd> limpa a seleção</li>
               <li><kbd>N</kbd> nome · <kbd>V</kbd> PV · <kbd>P</kbd> PP</li>
               <li><kbd>R</kbd> recursos · <kbd>C</kbd> condições · <kbd>F</kbd> fala</li>
-              <li><kbd>M</kbd> mapa · <kbd>⇧M</kbd> posição do mapa</li>
+              <li><kbd>M</kbd> mapa · <kbd>⇧M</kbd> posição · <kbd>⇧F</kbd> mapa como foto do narrador</li>
             </ul>
             <p className="grv-dica">Funcionam com esta aba em foco.</p>
           </Secao>
@@ -654,9 +654,17 @@ function MapaDoVtt({
         ))}
       </div>
       <p className="grv-dica">
-        <kbd>⇧M</kbd> troca a posição. &quot;No lugar do narrador&quot;: o card do narrador sai e o mapa fica com o espaço
-        grande dele na Narração (nos outros modos, no Centro).
+        <kbd>⇧M</kbd> troca a posição. Os jogadores ficam do outro lado (ou embaixo, no Centro).
       </p>
+      <label className="grv-caixa">
+        <input
+          type="checkbox"
+          checked={mapa.substituiNarrador}
+          onChange={(e) => mudarMapa({ substituiNarrador: e.target.checked })}
+        />
+        O mapa é a foto do narrador (nome embaixo do mapa)
+        <kbd>⇧F</kbd>
+      </label>
       <div className="grv-grupo">
         {(["ajustar", "preencher"] as const).map((e) => (
           <button
@@ -894,6 +902,9 @@ function useAtalhos(
           const i = POSICOES_MAPA.findIndex((p) => p.slug === x.mapa.posicao);
           return { ...x, mapa: { ...x.mapa, ligado: true, posicao: POSICOES_MAPA[(i + 1) % POSICOES_MAPA.length].slug } };
         });
+      } else if (e.shiftKey && e.code === "KeyF") {
+        // Mapa como foto do narrador (liga o mapa, se estava desligado).
+        mudar((x) => ({ ...x, mapa: { ...x.mapa, ligado: true, substituiNarrador: !x.mapa.substituiNarrador } }));
       } else if (e.shiftKey) {
         return;
       } else if (digito === "0") {

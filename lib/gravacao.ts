@@ -17,8 +17,8 @@ export type MostrarGravacao = {
   fala: boolean;
 };
 
-// "narrador": no modo Narração o mapa ocupa o espaço grande do narrador.
-export type PosicaoMapa = "esquerda" | "direita" | "centro" | "narrador";
+// Onde fica a área do mapa; os cards ficam na outra parte da tela.
+export type PosicaoMapa = "esquerda" | "direita" | "centro";
 
 // Ajustar: o mapa cabe inteiro. Preencher: corta as sobras.
 export type EncaixeMapa = "ajustar" | "preencher";
@@ -27,6 +27,9 @@ export type MapaGravacao = {
   ligado: boolean;
   posicao: PosicaoMapa;
   encaixe: EncaixeMapa;
+  // O mapa vira a foto do narrador: o card dele vai pra área do mapa, com o
+  // nome embaixo do mapa (sem o narrador na gravação, o mapa fica sozinho).
+  substituiNarrador: boolean;
   // Nome da fonte do mapa no OBS (Fase 6).
   fonteObs: string;
 };
@@ -75,7 +78,6 @@ export const POSICOES_MAPA: { slug: PosicaoMapa; nome: string }[] = [
   { slug: "esquerda", nome: "Esquerda" },
   { slug: "direita", nome: "Direita" },
   { slug: "centro", nome: "Centro" },
-  { slug: "narrador", nome: "No lugar do narrador" },
 ];
 
 export const MOSTRAR_PADRAO: MostrarGravacao = {
@@ -99,13 +101,13 @@ export const CONFIG_GRAVACAO_PADRAO: ConfigGravacao = {
   recursos: {},
   auto: { destacarVez: false, cinematicoNoCombate: false, ordemPorIniciativa: false },
   modoNoCombate: null,
-  mapa: { ligado: false, posicao: "direita", encaixe: "ajustar", fonteObs: "Mapa" },
+  mapa: { ligado: false, posicao: "direita", encaixe: "ajustar", substituiNarrador: false, fonteObs: "Mapa" },
   versao: 0,
 };
 
 const MODOS = new Set<string>(["narracao", "cinematico", "igualitario", "foco"]);
 const EXIBIR = new Set<string>(["numero", "barra", "oculto"]);
-const POSICOES = new Set<string>(["esquerda", "direita", "centro", "narrador"]);
+const POSICOES = new Set<string>(["esquerda", "direita", "centro"]);
 const MAX_IDS = 60;
 
 function obj(raw: unknown): Record<string, unknown> {
@@ -205,8 +207,12 @@ export function lerConfigGravacao(raw: unknown): ConfigGravacao {
     modoNoCombate: lerModoNoCombate(o.modoNoCombate),
     mapa: {
       ligado: mapa.ligado === true,
-      posicao: typeof mapa.posicao === "string" && POSICOES.has(mapa.posicao) ? (mapa.posicao as PosicaoMapa) : p.mapa.posicao,
+      // "narrador" era uma posição antes do interruptor: vira Centro + substituir.
+      posicao: typeof mapa.posicao === "string" && POSICOES.has(mapa.posicao)
+        ? (mapa.posicao as PosicaoMapa)
+        : mapa.posicao === "narrador" ? "centro" : p.mapa.posicao,
       encaixe: mapa.encaixe === "preencher" ? "preencher" : "ajustar",
+      substituiNarrador: mapa.substituiNarrador === true || mapa.posicao === "narrador",
       fonteObs: texto(mapa.fonteObs, p.mapa.fonteObs).trim() || p.mapa.fonteObs,
     },
     versao: typeof o.versao === "number" && Number.isFinite(o.versao) ? o.versao : 0,

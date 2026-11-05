@@ -27,6 +27,10 @@ const FRACOES_DESTAQUE = [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 1];
 // como destaque: o narrador em paisagem e os personagens em cena (retrato).
 const PROPORCAO_NARRADOR_DEMAIS = 3;
 const PROPORCAO_EM_CENA_DEMAIS = 1.5;
+// Card do narrador com o mapa como foto: mapa 16:9 + faixa do nome (fração da
+// largura, mesma conta do CSS .gv-card-com-mapa).
+export const RODAPE_CARD_MAPA = 0.07;
+const PROPORCAO_CARD_MAPA = 9 / 16 + RODAPE_CARD_MAPA;
 // Fração da tela que o mapa ocupa (largura nas laterais, altura no centro).
 const FRACAO_MAPA_LATERAL = 0.64;
 const FRACAO_MAPA_CENTRO = 0.64;
@@ -39,6 +43,8 @@ export type CardNoLayout = Retangulo & {
   id: string;
   formato: FormatoCard;
   destaque: boolean;
+  // Card do narrador com o mapa no lugar da foto (o miolo fica vazado).
+  comMapa?: boolean;
 };
 
 export type EntradaLayout = {
@@ -52,7 +58,7 @@ export type EntradaLayout = {
   foco: string[];
   // Turno de criatura: o narrador vira o destaque do Cinemático.
   narradorDestacado: boolean;
-  mapa: { ligado: boolean; posicao: PosicaoMapa } | null;
+  mapa: { ligado: boolean; posicao: PosicaoMapa; substituiNarrador: boolean } | null;
 };
 
 export type SaidaLayout = {
@@ -79,41 +85,43 @@ export function calcularLayout(entrada: EntradaLayout): SaidaLayout {
         : entrada.cards.filter((id) => id === entrada.idNarrador),
     }
     : entrada;
+  if (!e.mapa?.ligado) return { mapa: null, cards: dispor(e, TELA) };
+
+  // Mapa ligado: a tela se divide na área do mapa (lado ou em cima) e na dos cards.
+  const posicao = e.mapa.posicao;
+  let areaMapa: Retangulo;
+  let regiao: Retangulo;
+  if (posicao === "esquerda" || posicao === "direita") {
+    const larguraMapa = TELA.w * FRACAO_MAPA_LATERAL;
+    const resto = TELA.w - larguraMapa - ESPACO;
+    const naEsquerda = posicao === "esquerda";
+    areaMapa = { ...TELA, x: naEsquerda ? TELA.x : TELA.x + resto + ESPACO, w: larguraMapa };
+    regiao = { ...TELA, x: naEsquerda ? TELA.x + larguraMapa + ESPACO : TELA.x, w: resto };
+  } else {
+    [areaMapa, regiao] = dividir(TELA, FRACAO_MAPA_CENTRO, "vertical");
+  }
+
+  // Mapa como foto do narrador: o card dele vai pra área do mapa, com o mapa
+  // no lugar da imagem e o nome embaixo; os jogadores ficam na outra área.
+  if (e.mapa.substituiNarrador && e.cards.includes(e.idNarrador)) {
+    const card = encaixar(areaMapa, 1 / PROPORCAO_CARD_MAPA);
+    const destaque = e.modo === "narracao" || (e.modo === "cinematico" && e.narradorDestacado);
+    const jogadores = { ...e, cards: e.cards.filter((id) => id !== e.idNarrador), narradorDestacado: false };
+    return {
+      mapa: { x: card.x, y: card.y, w: card.w, h: (card.w * 9) / 16 },
+      cards: [
+        { ...card, id: e.idNarrador, formato: "paisagem" as const, destaque, comMapa: true },
+        ...dispor(jogadores, regiao),
+      ],
+    };
+  }
+
+  return { mapa: encaixar(areaMapa, 16 / 9), cards: dispor(e, regiao) };
+}
+
+// Os cards dentro de uma região, conforme o modo (Foco já filtrado).
+function dispor(e: EntradaLayout, regiao: Retangulo): CardNoLayout[] {
   const temNarrador = e.cards.includes(e.idNarrador);
-  const mapaLigado = !!e.mapa?.ligado;
-  const posicao = e.mapa?.posicao ?? "direita";
-
-  // Mapa no lugar do narrador: o card do narrador sai e o mapa fica com o
-  // espaço dele. Na Narração é o espaço grande (os jogadores em volta, igual
-  // ao narrador); nos outros modos o narrador não tem espaço próprio e o mapa
-  // vai pro Centro.
-  if (mapaLigado && posicao === "narrador") {
-    const jogadores = e.cards.filter((id) => id !== e.idNarrador);
-    if (e.modo === "narracao") {
-      // Arranja como se o narrador estivesse lá e põe o mapa no lugar dele.
-      const comLugar = calcularLayout({ ...e, cards: [e.idNarrador, ...jogadores], mapa: null });
-      const lugar = comLugar.cards.find((c) => c.id === e.idNarrador)!;
-      return { mapa: encaixar(lugar, 16 / 9), cards: comLugar.cards.filter((c) => c.id !== e.idNarrador) };
-    }
-    return calcularLayout({ ...e, cards: jogadores, mapa: { ligado: true, posicao: "centro" } });
-  }
-
-  let regiao = TELA;
-  let mapa: Retangulo | null = null;
-  if (mapaLigado) {
-    if (posicao === "esquerda" || posicao === "direita") {
-      const larguraMapa = TELA.w * FRACAO_MAPA_LATERAL;
-      const resto = TELA.w - larguraMapa - ESPACO;
-      const naEsquerda = posicao === "esquerda";
-      const areaMapa = { ...TELA, x: naEsquerda ? TELA.x : TELA.x + resto + ESPACO, w: larguraMapa };
-      mapa = encaixar(areaMapa, 16 / 9);
-      regiao = { ...TELA, x: naEsquerda ? TELA.x + larguraMapa + ESPACO : TELA.x, w: resto };
-    } else {
-      const [cima, baixo] = dividir(TELA, FRACAO_MAPA_CENTRO, "vertical");
-      mapa = encaixar(cima, 16 / 9);
-      regiao = baixo;
-    }
-  }
 
   // Quem é destaque em cada modo.
   let destaques: string[] = [];
@@ -127,16 +135,12 @@ export function calcularLayout(entrada: EntradaLayout): SaidaLayout {
       : e.cards.filter((id) => e.emCena.includes(id));
   }
 
-  if (destaques.length === 0) {
-    return { mapa, cards: grade(regiao, e.cards, "retrato", false) };
-  }
+  if (destaques.length === 0) return grade(regiao, e.cards, "retrato", false);
 
   const demais = e.cards.filter((id) => !destaques.includes(id));
-  if (demais.length === 0) {
-    return { mapa, cards: grade(regiao, destaques, formatoDestaque, true) };
-  }
+  if (demais.length === 0) return grade(regiao, destaques, formatoDestaque, true);
 
-  return { mapa, cards: centralizar(regiao, melhorArranjo(regiao, destaques, formatoDestaque, demais)) };
+  return centralizar(regiao, melhorArranjo(regiao, destaques, formatoDestaque, demais));
 }
 
 // Testa vários jeitos de dividir a região entre destaques e demais e fica com
