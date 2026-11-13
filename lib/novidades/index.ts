@@ -1,10 +1,11 @@
 import type { Novidade } from "./tipos";
 import n20261024 from "./2026-10-24";
+import n20261113 from "./2026-11-13";
 
 export type { Mudanca, Novidade, TelaNovidade, ZonaNovidade } from "./tipos";
 
 // Nova atualização: lib/novidades/AAAA-MM-DD.ts, mídias em public/novidades/AAAA-MM-DD/ e o import aqui.
-export const NOVIDADES: Novidade[] = [n20261024].sort((a, b) => b.data.localeCompare(a.data));
+export const NOVIDADES: Novidade[] = [n20261024, n20261113].sort((a, b) => b.data.localeCompare(a.data));
 
 export const ULTIMA_NOVIDADE = NOVIDADES[0]?.data ?? "";
 
