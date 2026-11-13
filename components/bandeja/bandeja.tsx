@@ -4,6 +4,7 @@ import {
   type CSSProperties,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -52,6 +53,8 @@ type Dock = "bottom" | "side-left" | "side-right" | "float";
 
 const SNAP_THRESHOLD = 80;
 const DRAG_THRESHOLD = 5;
+// Quanto o arremesso conta: velocidade (px/ms) x isto = distancia extra percorrida.
+const INERCIA_MS = 180;
 const MARGIN = 20;
 // Largura da bandeja aberta (a mesma do CSS; em tela estreita ela ocupa a tela).
 const BANDEJA_W = 372;
@@ -70,6 +73,7 @@ export function Bandeja({
   const bandejaRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<PainelChatHandle>(null);
+  const animRef = useRef<Animation | null>(null);
 
   const [aba, setAba] = useState<Aba>("rolador");
   const [collapsed, setCollapsed] = useState(true);
@@ -103,34 +107,69 @@ export function Bandeja({
   const dragRef = useRef({
     dragging: false,
     hasMoved: false,
+    pointerId: -1,
     startX: 0,
     startY: 0,
     startLeft: 0,
     startTop: 0,
+    // Últimas posições do ponteiro: dão a velocidade do arremesso ao soltar.
+    amostras: [] as { t: number; x: number; y: number }[],
   });
+  // Onde a bandeja estava ao soltar; o layout effect anima dali até o encaixe.
+  const deRef = useRef<DOMRect | null>(null);
+
+  useLayoutEffect(() => {
+    const de = deRef.current;
+    const el = bandejaRef.current;
+    if (!de || !el) return;
+    deRef.current = null;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Medido antes de a transição de largura andar: é o ponto de partida real.
+    const para = el.getBoundingClientRect();
+    const dx = de.left - para.left;
+    const dy = de.top - para.top;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    animRef.current?.cancel();
+    animRef.current = el.animate(
+      [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "translate(0, 0)" }],
+      { duration: 420, easing: "cubic-bezier(0.2, 0.9, 0.25, 1.06)" },
+    );
+  }, [dock, pos, collapsed]);
 
   useEffect(() => {
     const bandeja = bandejaRef.current;
     const header = headerRef.current;
     if (!bandeja || !header) return;
 
+    // Passou da borda? Segue o dedo com resistência, em vez de bater na parede.
+    function elastico(v: number, min: number, max: number) {
+      const sobra = v < min ? min - v : v > max ? v - max : 0;
+      if (!sobra) return v;
+      const amortecido = Math.min(sobra * 0.3, 48);
+      return v < min ? min - amortecido : max + amortecido;
+    }
+
     function onMouseDown(e: PointerEvent) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       if ((e.target as HTMLElement).closest(".switch-btn")) return;
+      // Pegou durante o voo do encaixe: congela onde está e segue dali.
+      animRef.current?.cancel();
       const rect = bandeja!.getBoundingClientRect();
       dragRef.current = {
         dragging: true,
         hasMoved: false,
+        pointerId: e.pointerId,
         startX: e.clientX,
         startY: e.clientY,
         startLeft: rect.left,
         startTop: rect.top,
+        amostras: [{ t: performance.now(), x: e.clientX, y: e.clientY }],
       };
     }
 
     function onMouseMove(e: PointerEvent) {
       const d = dragRef.current;
-      if (!d.dragging) return;
+      if (!d.dragging || e.pointerId !== d.pointerId) return;
       const dx = e.clientX - d.startX;
       const dy = e.clientY - d.startY;
 
@@ -138,41 +177,68 @@ export function Bandeja({
         if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
         d.hasMoved = true;
         // Inline style sobrepõe a posição do dock atual. Sem transição —
-        // o movimento segue o mouse direto. O dock só muda no mouseup.
+        // o movimento segue o ponteiro direto. O dock só muda ao soltar.
         bandeja!.style.transition = "none";
         bandeja!.style.left = `${d.startLeft}px`;
         bandeja!.style.top = `${d.startTop}px`;
         bandeja!.style.right = "auto";
         bandeja!.style.bottom = "auto";
+        bandeja!.dataset.arrastando = "true";
+        try {
+          header!.setPointerCapture(e.pointerId);
+        } catch {}
       }
+
+      const agora = performance.now();
+      d.amostras.push({ t: agora, x: e.clientX, y: e.clientY });
+      while (d.amostras.length > 2 && agora - d.amostras[0].t > 100) d.amostras.shift();
 
       const W = window.innerWidth;
       const H = window.innerHeight;
-      const newLeft = Math.max(0, Math.min(d.startLeft + dx, W - bandeja!.offsetWidth));
-      const newTop = Math.max(0, Math.min(d.startTop + dy, H - bandeja!.offsetHeight));
+      const newLeft = elastico(d.startLeft + dx, 0, W - bandeja!.offsetWidth);
+      const newTop = elastico(d.startTop + dy, 0, H - bandeja!.offsetHeight);
       bandeja!.style.left = `${newLeft}px`;
       bandeja!.style.top = `${newTop}px`;
     }
 
-    function onMouseUp() {
+    function onMouseUp(e: PointerEvent) {
       const d = dragRef.current;
-      if (!d.dragging) return;
+      if (!d.dragging || e.pointerId !== d.pointerId) return;
       d.dragging = false;
       bandeja!.style.transition = "";
+      delete bandeja!.dataset.arrastando;
+      try {
+        header!.releasePointerCapture(e.pointerId);
+      } catch {}
 
       if (d.hasMoved) {
-        snap();
+        // Velocidade (px/ms) nas últimas amostras; parou antes de soltar = 0.
+        const am = d.amostras;
+        const ultimo = am[am.length - 1];
+        const primeiro = am[0];
+        let vx = 0;
+        let vy = 0;
+        if (e.type === "pointerup" && performance.now() - ultimo.t < 80 && ultimo.t > primeiro.t) {
+          vx = (ultimo.x - primeiro.x) / (ultimo.t - primeiro.t);
+          vy = (ultimo.y - primeiro.y) / (ultimo.t - primeiro.t);
+        }
+        snap(vx, vy);
       }
     }
 
-    function snap() {
+    function snap(vx: number, vy: number) {
       const rect = bandeja!.getBoundingClientRect();
+      deRef.current = rect;
       const W = window.innerWidth;
       const H = window.innerHeight;
-      const distLeft = rect.left;
-      const distRight = W - (rect.left + rect.width);
-      const distBottom = H - (rect.top + rect.height);
       const largura = Math.min(BANDEJA_W, W);
+
+      // Arremesso: encaixa onde a bandeja pararia, não onde o dedo soltou.
+      const projLeft = Math.max(0, Math.min(rect.left + vx * INERCIA_MS, W - rect.width));
+      const projTop = Math.max(0, Math.min(rect.top + vy * INERCIA_MS, H - rect.height));
+      const distLeft = projLeft;
+      const distRight = W - (projLeft + rect.width);
+      const distBottom = H - (projTop + rect.height);
 
       // Limpa overrides inline — vão ser substituídos pelo style derivado do state.
       bandeja!.style.left = "";
@@ -183,22 +249,22 @@ export function Bandeja({
       if (distBottom < SNAP_THRESHOLD) {
         setDock("bottom");
         setCollapsed(true);
-        setPos({ x: Math.max(0, Math.min(rect.left, W - largura)), y: 0 });
+        setPos({ x: Math.max(0, Math.min(projLeft, W - largura)), y: 0 });
       } else if (distLeft < SNAP_THRESHOLD) {
         setDock("side-left");
         setCollapsed(true);
-        setPos({ x: 0, y: Math.max(MARGIN, Math.min(rect.top, H - 100)) });
+        setPos({ x: 0, y: Math.max(MARGIN, Math.min(projTop, H - 100)) });
       } else if (distRight < SNAP_THRESHOLD) {
         setDock("side-right");
         setCollapsed(true);
-        setPos({ x: 0, y: Math.max(MARGIN, Math.min(rect.top, H - 100)) });
+        setPos({ x: 0, y: Math.max(MARGIN, Math.min(projTop, H - 100)) });
       } else {
-        let finalLeft = rect.left;
+        let finalLeft = projLeft;
         if (finalLeft + largura > W) finalLeft = W - largura - MARGIN;
         setDock("float");
         setPos({
           x: Math.max(MARGIN, finalLeft),
-          y: Math.max(MARGIN, Math.min(rect.top, H - 200)),
+          y: Math.max(MARGIN, Math.min(projTop, H - 200)),
         });
       }
     }
@@ -209,12 +275,25 @@ export function Bandeja({
       setCollapsed((c) => !c);
     }
 
+    // Janela mudou de tamanho: puxa a bandeja de volta pra dentro da tela.
+    function onResize() {
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      const largura = Math.min(BANDEJA_W, W);
+      setPos((p) => {
+        const x = Math.max(0, Math.min(p.x, W - largura));
+        const y = Math.max(0, Math.min(p.y, H - 100));
+        return x === p.x && y === p.y ? p : { x, y };
+      });
+    }
+
     // Ponteiro cobre mouse, toque e caneta: no celular a bandeja também arrasta.
     header.addEventListener("pointerdown", onMouseDown);
     header.addEventListener("click", onHeaderClick);
     document.addEventListener("pointermove", onMouseMove);
     document.addEventListener("pointerup", onMouseUp);
     document.addEventListener("pointercancel", onMouseUp);
+    window.addEventListener("resize", onResize);
 
     return () => {
       header.removeEventListener("pointerdown", onMouseDown);
@@ -222,6 +301,7 @@ export function Bandeja({
       document.removeEventListener("pointermove", onMouseMove);
       document.removeEventListener("pointerup", onMouseUp);
       document.removeEventListener("pointercancel", onMouseUp);
+      window.removeEventListener("resize", onResize);
     };
   }, []);
 

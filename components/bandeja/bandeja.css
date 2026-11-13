@@ -2135,3 +2135,12 @@
     animation: none;
   }
 }
+
+/* ─── Arrastar: a bandeja "levanta" enquanto está na mão ─────────── */
+.bandeja[data-arrastando="true"] {
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+  will-change: left, top;
+}
+.bandeja[data-arrastando="true"] .bandeja-header {
+  cursor: grabbing;
+}
