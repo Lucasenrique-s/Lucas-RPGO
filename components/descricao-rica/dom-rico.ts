@@ -18,6 +18,19 @@ const ZERO = /​/g;
 /* ─── Átomos (chips) ─────────────────────────────────────── */
 
 export function elementoAtomo(no: Atomo, ctx?: ContextoRico): HTMLElement {
+  // Imagem: aparece de verdade no editor (miniatura que se apaga como um chip).
+  if (no.t === "imagem") {
+    const fig = document.createElement("span");
+    fig.contentEditable = "false";
+    fig.dataset.no = JSON.stringify(no);
+    fig.className = "desc-imagem-ed";
+    const img = document.createElement("img");
+    img.src = no.url;
+    img.alt = no.legenda;
+    img.draggable = false;
+    fig.append(img);
+    return fig;
+  }
   const ap = aparenciaDoAtomo(no, ctx);
   const el = document.createElement("span");
   el.contentEditable = "false";

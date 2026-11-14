@@ -23,6 +23,8 @@ import type { CalendarioCarregado } from "@/lib/calendario/carregar";
 import { alvosPericiaCustom, type Atributo, type EfeitosAgregados } from "@/lib/op-rpg";
 import type { SubfichaCard } from "@/lib/resumo-personagem";
 import { ABAS, type AbaFicha } from "@/lib/subficha";
+import type { DadosDiario } from "@/lib/diario-carregar";
+import { DiarioView } from "@/app/diario/[mesaId]/diario-view";
 
 type Acao = React.ComponentProps<typeof AcoesTab>["acoes"][number];
 type Item = React.ComponentProps<typeof InventarioTab>["itens"][number];
@@ -61,6 +63,8 @@ type Props = {
   habilidades: Habilidade[];
   efeitosAgregados: EfeitosAgregados;
   calendario: CalendarioCarregado | null;
+  // Diário da mesa pra aba Diário; null = a ficha não tem a aba.
+  diario: DadosDiario | null;
   objetivos: Objetivo[];
   isNarradorDaMesa: boolean;
   tripulantes: Tripulante[];
@@ -100,6 +104,7 @@ export function FichaTabs({
   habilidades,
   efeitosAgregados,
   calendario,
+  diario,
   objetivos,
   isNarradorDaMesa,
   tripulantes,
@@ -413,6 +418,33 @@ export function FichaTabs({
             eventos={calendario.eventos}
             tiposClima={calendario.tiposClima}
             objetivos={objetivosComPrazo}
+          />
+        </div>
+      )}
+
+      {mesaId && diario && abas.includes("diario") && (
+        <div
+          hidden={ativa !== "diario"}
+          role="tabpanel"
+          id="painel-diario"
+          aria-labelledby="tab-diario"
+          className="diario-embutido"
+        >
+          {/* Abre no "Meu diário": é o diário desta pessoa. O atalho Ctrl+J é o global da página. */}
+          <DiarioView
+            mesaId={mesaId}
+            meuId={diario.meuId}
+            ehNarrador={diario.ehNarrador}
+            fichas={diario.fichas}
+            notas={diario.notas}
+            sessoes={diario.sessoes}
+            mencoes={diario.mencoes}
+            autores={diario.autores}
+            calendario={diario.calendario}
+            escopoInicial="meu"
+            atalho={false}
+            somenteLeitura={diario.somenteLeitura}
+            avisoLeitura={diario.somenteLeitura ? `Você está vendo o diário de ${personagemNome} como ele(a) vê. Somente leitura.` : undefined}
           />
         </div>
       )}

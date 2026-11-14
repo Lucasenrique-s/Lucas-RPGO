@@ -17,6 +17,7 @@ import {
   EFEITOS_CATALOGO,
   ICONE_COND,
   ICONE_REF,
+  ROTULO_REF,
   MARCADOR_PADRAO,
   efeitoDaAcao,
   efeitosDaAcao,
@@ -95,6 +96,8 @@ export function EditorRico({
   condicoes = [],
   contexto = {},
   automatica,
+  enviarImagem,
+  criarFicha,
   placeholder = "Descreva o efeito… (@ insere, / blocos)",
 }: {
   valor: string;
@@ -105,6 +108,14 @@ export function EditorRico({
   // A descrição é gerada dos efeitos e da duração da ação: `ativa` enquanto o
   // texto segue o gerado; `regenerar` volta a ele (desfazível).
   automatica?: { ativa: boolean; regenerar: () => void };
+  // Com isso o editor aceita imagem: colar (Ctrl+V), arrastar ou o botão. A função
+  // sobe o arquivo e devolve o endereço; a imagem entra onde está o cursor.
+  enviarImagem?: (arquivo: File) => Promise<string>;
+  // Diário: cria a ficha que o `@` não achou. Devolve a ref pra entrar no texto.
+  criarFicha?: {
+    tipos: { id: string; nome: string; icone: string }[];
+    criar: (nome: string, tipo: string) => Promise<OpcaoRef>;
+  };
   placeholder?: string;
 }) {
   const raiz = useRef<HTMLDivElement>(null);
@@ -139,7 +150,7 @@ export function EditorRico({
 
   // Tudo que o texto pode virar chip: ações, condições, efeitos e tipos de dano.
   const candidatos = useMemo<Candidato[]>(() => {
-    const rotuloRef = { acao: "Ação", hab: "Habilidade", item: "Item" } as const;
+    const rotuloRef = ROTULO_REF;
     return [
       // Os efeitos reais da ação vêm antes dos do catálogo (prioridade menor).
       ...efeitosDaAcao({ efeitos: contexto.efeitos, resumoEfeito: contexto.resumoEfeito }).map((e): Candidato => ({
@@ -756,6 +767,23 @@ export function EditorRico({
 
   const inserirAtomo = (no: Atomo) => inserirNos([elementoAtomo(no, ctx)], true);
 
+  // Imagem no ponto do cursor: guarda o cursor antes de esperar o envio.
+  const [enviando, setEnviando] = useState(false);
+  const inputImagem = useRef<HTMLInputElement>(null);
+  async function anexarImagem(arquivo: File) {
+    if (!enviarImagem) return;
+    rangeSalvo.current = rangeAtual().cloneRange();
+    setEnviando(true);
+    try {
+      const url = await enviarImagem(arquivo);
+      inserirAtomo({ t: "imagem", url, legenda: "" });
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Falha ao enviar a imagem.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   /* ─── Linhas: Enter, Backspace, Tab ─────────────────────── */
 
   function partirLinha(): { atual: HTMLElement; nova: HTMLElement } | null {
@@ -998,6 +1026,8 @@ export function EditorRico({
 
   function colar(e: React.ClipboardEvent) {
     e.preventDefault();
+    const imagem = enviarImagem ? [...e.clipboardData.files].find((f) => f.type.startsWith("image/")) : undefined;
+    if (imagem) return void anexarImagem(imagem);
     const el = campo.current!;
     const texto = e.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");
     if (!texto) return;
@@ -1114,6 +1144,32 @@ export function EditorRico({
           <button type="button" title="Rolagem com tipo de dano" aria-pressed={painel === "rolagem"} onClick={() => abrir("rolagem")}>
             <i className="fas fa-dice-d20" /> Rolagem
           </button>
+          {enviarImagem && (
+            <>
+              <button
+                type="button"
+                title="Inserir imagem no cursor (ou cole com Ctrl+V)"
+                disabled={enviando}
+                onClick={() => {
+                  rangeSalvo.current = rangeAtual().cloneRange();
+                  inputImagem.current?.click();
+                }}
+              >
+                <i className="fas fa-image" /> {enviando ? "Enviando..." : "Imagem"}
+              </button>
+              <input
+                ref={inputImagem}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void anexarImagem(f);
+                }}
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -1124,6 +1180,17 @@ export function EditorRico({
           tiposDano={tiposDano}
           efeitosAcao={efeitosAcao}
           duracaoAcao={contexto.duracao ? rotuloDuracao(contexto.duracao) : undefined}
+          calendario={contexto.calendario}
+          tiposNovos={criarFicha?.tipos}
+          aoCriar={
+            criarFicha
+              ? (nome, tipo) =>
+                  void criarFicha
+                    .criar(nome, tipo)
+                    .then((r) => inserirAtomo({ t: "ref", tipo: r.tipo, id: r.id, nome: r.nome }))
+                    .catch((e) => window.alert(e instanceof Error ? e.message : "Falha ao criar a ficha."))
+              : undefined
+          }
           aoEscolher={inserirAtomo}
           aoFechar={() => setPainel(null)}
         />

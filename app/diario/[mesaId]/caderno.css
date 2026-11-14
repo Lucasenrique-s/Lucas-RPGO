@@ -1,0 +1,733 @@
+/* ─── Caderno de capa preta ──────────────────────────────────────────────
+   Duas páginas no computador, uma no celular. O texto corre em colunas de altura
+   fixa (cada coluna é uma página). Ao virar, uma folha com duas faces carrega o
+   texto das páginas que giram. O papel é claro nos dois temas do app: é papel. */
+
+.caderno {
+  --papel: #fbfaf6;
+  --tinta: #25272b;
+  --capa: #1f2328;
+  --capa-2: #2a2f36;
+  --fita: #c0392b;
+  position: relative;
+  font-size: 22px;
+  color: var(--tinta);
+}
+.caderno--sobe {
+  animation: cad-sobe 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.caderno--desce {
+  animation: cad-desce 0.5s cubic-bezier(0.5, 0, 0.9, 0.4) both;
+}
+@keyframes cad-sobe {
+  from {
+    transform: translateY(70vh) rotateX(18deg);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes cad-desce {
+  from {
+    transform: none;
+    opacity: 1;
+  }
+  to {
+    transform: translateY(75vh) rotateX(12deg);
+    opacity: 0;
+  }
+}
+
+.cad-barra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--text-sec);
+}
+.cad-barra-espaco {
+  flex: 1;
+}
+
+/* Moldura. A metade esquerda dela só aparece quando a capa termina de abrir: enquanto a
+   folha da capa gira, a esquerda continua vazia. Só a moldura é cortada; a folha não. */
+.cad-livro {
+  position: relative;
+  border-radius: 12px;
+  padding: 12px;
+  perspective: 2200px;
+}
+.cad-livro::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--capa);
+  border-radius: 12px;
+  transition: clip-path 0.25s ease-out;
+}
+/* A capa fechada fica no centro; abrir desliza o livro pro lado no mesmo tempo da capa. */
+.caderno--centrada:not(.caderno--uma) .cad-livro {
+  transform: translateX(calc(var(--pw) * -0.5));
+}
+.caderno--virando .cad-livro {
+  transition: transform 0.8s cubic-bezier(0.45, 0.05, 0.25, 1);
+}
+.caderno--meia:not(.caderno--uma) .cad-livro::before {
+  clip-path: inset(0 0 0 50%);
+}
+.cad-capa-estatica {
+  position: absolute;
+  top: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.cad-pg.cad-pg--capa {
+  background: var(--capa-2);
+  border: 2px solid #3a414b;
+  border-radius: 0 10px 10px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 20px;
+  box-sizing: border-box;
+  color: #d9dde3;
+}
+.cad-capa-etiqueta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--papel);
+  color: var(--tinta);
+  padding: 14px 22px;
+  border-radius: 3px;
+  transform: rotate(-2deg);
+  max-width: 100%;
+}
+.cad-capa-etiqueta small {
+  font-size: 0.65em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: system-ui, sans-serif;
+  opacity: 0.7;
+}
+.cad-capa-etiqueta strong {
+  font-size: 1.6em;
+  font-weight: 500;
+  line-height: 1.1;
+  word-break: break-word;
+}
+.cad-capa-dica {
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+
+/* Páginas */
+.cad-folhas {
+  position: relative;
+}
+.cad-papel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 3px;
+  /* a pilha de folhas na beirada de fora */
+  box-shadow:
+    inset -2px 0 0 #ece9e0,
+    inset -3px 0 0 #bdb8aa,
+    inset -5px 0 0 #ece9e0,
+    inset -6px 0 0 #bdb8aa;
+}
+.caderno--uma .cad-papel {
+  box-shadow: inset -2px 0 0 #ece9e0, inset -3px 0 0 #bdb8aa;
+}
+.cad-papel--oculto {
+  visibility: hidden;
+  pointer-events: none;
+}
+.cad-papel--aberto {
+  background: var(--papel);
+}
+.cad-lombada {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--capa);
+  z-index: 5;
+}
+.cad-janela {
+  position: absolute;
+  left: var(--padx);
+  top: var(--pady);
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.cad-janela--escondida {
+  visibility: hidden;
+}
+.cad-fluxo {
+  position: relative;
+  column-fill: auto;
+  line-height: 28px;
+}
+.cad-fluxo--desliza {
+  transition: transform 0.45s cubic-bezier(0.4, 0.1, 0.2, 1);
+}
+.cad-num {
+  position: absolute;
+  bottom: 6px;
+  font-size: 0.6em;
+  font-family: system-ui, sans-serif;
+  opacity: 0.5;
+  z-index: 3;
+}
+/* Número de página: centrado embaixo de cada página */
+.cad-num--esq {
+  left: 0;
+  width: 50%;
+  text-align: center;
+}
+.cad-num--dir {
+  left: 50%;
+  width: 50%;
+  text-align: center;
+}
+.caderno--uma .cad-num--esq {
+  width: 100%;
+}
+.cad-pg .cad-num {
+  left: 0;
+  width: 100%;
+  text-align: center;
+}
+
+/* Texto: título, corpo, imagens */
+.cad-secao {
+  break-before: column;
+  display: block;
+}
+.cad-cabeca h3 {
+  font-size: 1.8em;
+  line-height: 34px;
+  font-weight: 500;
+  margin: 0;
+}
+.cad-sub {
+  display: block;
+  font-size: 0.75em;
+  line-height: 20px;
+  opacity: 0.6;
+  font-family: system-ui, sans-serif;
+}
+.cad-cabeca {
+  margin-bottom: 10px;
+}
+.cad-vazio {
+  opacity: 0.55;
+  margin: 10px 0;
+}
+.cad-nota {
+  position: relative;
+  break-inside: avoid;
+  margin: 0 0 18px;
+}
+.cad-titulo {
+  font-size: 1.4em;
+  line-height: 30px;
+  font-weight: 500;
+  margin: 0 0 2px;
+}
+.cad-estrela {
+  color: var(--fita);
+  font-size: 0.6em;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.cad-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.55em;
+  opacity: 0.45;
+  line-height: 16px;
+  margin-top: 2px;
+}
+.cad-abrir {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0 2px;
+  opacity: 0;
+}
+.cad-nota:hover .cad-abrir,
+.cad-ficha:hover .cad-abrir,
+.cad-abrir:focus-visible {
+  opacity: 1;
+  text-decoration: underline;
+}
+@media (hover: none) {
+  .cad-abrir {
+    opacity: 0.8;
+  }
+}
+
+/* O texto rico: caneta e marca-texto */
+.caderno .desc,
+.caderno .desc-rica {
+  color: var(--tinta);
+  font-size: 1em;
+  line-height: 28px;
+}
+.caderno .desc .desc-chip {
+  background: rgba(255, 226, 60, 0.65);
+  color: var(--tinta);
+  border: 0;
+  border-radius: 2px;
+  padding: 0 3px;
+  font: inherit;
+  box-shadow: none;
+}
+.caderno .desc .desc-chip i {
+  display: none;
+}
+
+/* Imagem: moldura de polaroid, centrada na página */
+.caderno .desc-imagem {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  background: #fff;
+  padding: 10px 10px 30px;
+  border: 1px solid #cfcabd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  margin: 10px 0;
+  break-inside: avoid;
+}
+.caderno .desc-imagem img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(var(--ph) * 0.34);
+  object-fit: contain;
+  border: 0;
+  border-radius: 0;
+}
+.caderno .desc-imagem-legenda {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 3px;
+  margin: 0;
+  color: var(--tinta);
+  font-size: 0.8em;
+  line-height: 22px;
+  text-align: center;
+}
+
+/* Ficha: polaroid ao lado do texto, no mesmo fluxo das anotações */
+.cad-ficha {
+  position: relative;
+  break-inside: avoid;
+  margin: 0 0 18px;
+}
+.cad-ficha .desc-imagem {
+  clear: both;
+}
+.cad-ficha::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+.cad-moldura--foto {
+  float: left;
+  width: 112px;
+  background: #fff;
+  padding: 8px 8px 26px;
+  border: 1px solid #cfcabd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  margin: 2px 14px 6px 0;
+}
+.cad-foto {
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.8rem;
+  overflow: hidden;
+}
+.cad-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Índice */
+.cad-grupo h4 {
+  font-family: system-ui, sans-serif;
+  font-size: 0.6em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 14px 0 2px;
+  opacity: 0.6;
+  font-weight: 500;
+}
+.cad-linha-indice {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  line-height: 28px;
+}
+.cad-linha-indice:hover span:first-child {
+  text-decoration: underline;
+}
+.cad-pontos {
+  flex: 1;
+  border-bottom: 1px dotted var(--tinta);
+  opacity: 0.5;
+  transform: translateY(-5px);
+}
+
+/* Página em branco: escrever direto no papel */
+.cad-escrever {
+  position: absolute;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  overflow-y: auto;
+}
+.cad-escrever h3 {
+  font-size: 1.8em;
+  line-height: 34px;
+  font-weight: 500;
+  margin: 0;
+}
+.cad-titulo-campo {
+  width: 100%;
+  font: inherit;
+  font-size: 1.4em;
+  line-height: 32px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.25);
+  background: transparent;
+  color: var(--tinta);
+  outline: none;
+}
+.cad-titulo-campo::placeholder {
+  color: rgba(0, 0, 0, 0.32);
+}
+.cad-escrever .diario-editor-caixa {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+}
+.cad-escrever .desc-editor-rico {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.cad-escrever .desc-barra-rica {
+  border: 0;
+  padding: 0 0 4px;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+.cad-escrever .desc-editor-rico:focus-within .desc-barra-rica,
+.cad-escrever .desc-barra-rica:hover {
+  opacity: 1;
+}
+.cad-escrever .desc-barra-rica button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--tinta);
+  min-width: 28px;
+  min-height: 28px;
+}
+.cad-escrever .desc-grupo {
+  border-right-color: rgba(0, 0, 0, 0.15);
+}
+.cad-escrever .desc-campo-rico {
+  background: transparent;
+  color: var(--tinta);
+  font-family: inherit;
+  font-size: 1em;
+  line-height: 28px;
+  padding: 0;
+  min-height: 220px;
+  max-height: none;
+  overflow: visible;
+}
+.cad-escrever .desc-campo-rico:empty::before {
+  color: rgba(0, 0, 0, 0.32);
+}
+.cad-escrever .desc-imagem-ed {
+  background: #fff;
+  padding: 8px 8px 24px;
+  border: 1px solid #cfcabd;
+  border-radius: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.cad-escrever .desc-imagem-ed img {
+  max-height: 160px;
+}
+.cad-salvar {
+  align-self: flex-start;
+  margin-top: 6px;
+  font: inherit;
+  font-size: 1em;
+  background: transparent;
+  border: 1.5px solid var(--tinta);
+  border-radius: 3px;
+  padding: 2px 14px;
+  cursor: pointer;
+  color: var(--tinta);
+}
+.cad-salvar:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ─── Virar página: a folha carrega o texto ────────────────── */
+.cad-anim {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+}
+.cad-base {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  left: 0;
+}
+.cad-pg {
+  position: relative;
+  background: var(--papel);
+  overflow: hidden;
+}
+.cad-folha {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  transform-style: preserve-3d;
+  z-index: 2;
+}
+.cad-folha--vai {
+  transform-origin: left center;
+  animation: cad-vai 0.8s cubic-bezier(0.45, 0.05, 0.25, 1) forwards;
+}
+.cad-folha--volta {
+  transform-origin: right center;
+  animation: cad-volta 0.8s cubic-bezier(0.45, 0.05, 0.25, 1) forwards;
+}
+.cad-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  background: var(--papel);
+}
+.cad-face--verso {
+  transform: rotateY(180deg);
+}
+/* A sombra passa pela folha no meio da virada. */
+.cad-sombra {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  animation: cad-sombra 0.8s ease-in-out forwards;
+}
+@keyframes cad-vai {
+  from {
+    transform: perspective(2800px) rotateY(0deg);
+  }
+  to {
+    transform: perspective(2800px) rotateY(-180deg);
+  }
+}
+@keyframes cad-volta {
+  from {
+    transform: perspective(2800px) rotateY(0deg);
+  }
+  to {
+    transform: perspective(2800px) rotateY(180deg);
+  }
+}
+@keyframes cad-sombra {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Divisórias: as seções já viradas na borda esquerda, as que vêm ainda na direita. */
+.cad-abas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+}
+.cad-aba {
+  position: absolute;
+  width: 22px;
+  pointer-events: auto;
+  writing-mode: vertical-rl;
+  font-family: system-ui, sans-serif;
+  font-size: 0.66rem;
+  line-height: 1;
+  padding: 0;
+  border: 1.5px solid var(--capa);
+  background: #d9b95f;
+  color: #3a2e0e;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: width 0.15s ease;
+}
+.cad-aba:nth-child(3n + 2) {
+  background: #9fc3a0;
+  color: #1f3a21;
+}
+.cad-aba:nth-child(3n) {
+  background: #c9a6d9;
+  color: #3a2150;
+}
+.cad-aba--esq {
+  left: 0;
+  border-radius: 0 6px 6px 0;
+}
+.cad-aba--dir {
+  right: 0;
+  border-radius: 6px 0 0 6px;
+}
+.cad-aba:hover {
+  width: 28px;
+}
+.cad-aba.cad-aba--atual {
+  width: 28px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  background: var(--papel);
+  color: var(--tinta);
+}
+.cad-fita-marcadora {
+  position: absolute;
+  right: 30px;
+  top: 0;
+  width: 16px;
+  height: 70px;
+  padding: 0;
+  border: 0;
+  background: var(--fita);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 84%, 0 100%);
+  cursor: pointer;
+  z-index: 9;
+}
+.cad-seta {
+  position: absolute;
+  bottom: 14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(31, 35, 40, 0.85);
+  color: #e8eaee;
+  cursor: pointer;
+  z-index: 10;
+}
+.cad-seta:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.cad-seta--esq {
+  left: 22px;
+}
+.cad-seta--dir {
+  right: 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caderno--sobe,
+  .caderno--desce,
+  .cad-folha,
+  .cad-sombra,
+  .cad-capa,
+  .cad-livro,
+  .cad-fluxo {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* A página de escrever desenhada nas faces da folha (igual à de verdade, sem editar) */
+.cad-escrever--fixa {
+  overflow: hidden;
+  pointer-events: none;
+}
+.cad-titulo-campo--vazio {
+  color: rgba(0, 0, 0, 0.32);
+}
+div.cad-titulo-campo {
+  min-height: 34px;
+}
+.cad-texto-fixo {
+  flex: 1;
+  white-space: pre-wrap;
+  line-height: 28px;
+  overflow: hidden;
+}
+span.cad-salvar {
+  display: inline-block;
+  opacity: 0.4;
+}
+
+/* Abas, fita e setas surgem devagar quando o livro termina de abrir. */
+.cad-abas,
+.cad-fita-marcadora,
+.cad-seta {
+  animation: cad-aparece 0.35s ease both;
+}
+@keyframes cad-aparece {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

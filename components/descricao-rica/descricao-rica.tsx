@@ -13,6 +13,7 @@ import {
 import { condicaoNoCatalogo } from "@/lib/condicoes";
 import { linhasDaMecanica, mecanicaDa } from "@/lib/condicoes-mecanica";
 import { formatarMod, modificador } from "@/lib/op-rpg";
+import { dataRelativa } from "@/lib/calendario/engine";
 import {
   aparenciaDoAtomo,
   atributoRico,
@@ -126,6 +127,14 @@ function NoView({ no, ctx }: { no: Inline; ctx?: ContextoRico }) {
     }
     case "icone":
       return <i className={`fas fa-${no.slug} desc-icone`} aria-hidden="true" data-no={JSON.stringify(no)} />;
+    case "imagem":
+      return (
+        <a className="desc-imagem" href={no.url} target="_blank" rel="noopener noreferrer" data-no={JSON.stringify(no)}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={no.url} alt={no.legenda} loading="lazy" />
+          {no.legenda && <span className="desc-imagem-legenda">{no.legenda}</span>}
+        </a>
+      );
     default:
       return <ChipView no={no} ctx={ctx} />;
   }
@@ -181,6 +190,15 @@ function ChipView({ no, ctx }: { no: Atomo; ctx?: ContextoRico }) {
       selo: ap.apagada ? "removida" : info?.selo,
       texto: ap.apagada ? "Esta referência foi apagada." : info?.texto,
     };
+    if (no.tipo === "dia") {
+      const dias = Number(no.id);
+      const hoje = ctx?.calendario?.hoje;
+      dica = {
+        titulo: ap.rotulo,
+        selo: "Data do calendário",
+        texto: hoje !== undefined && Number.isFinite(dias) ? dataRelativa(dias, hoje) : undefined,
+      };
+    }
   } else if (no.t === "cond") {
     const c = ctx?.condicoes?.find((x) => x.nome.toLowerCase() === no.nome.toLowerCase());
     const e = ctx?.catalogoCondicoes ? condicaoNoCatalogo(ctx.catalogoCondicoes, no.nome) : null;

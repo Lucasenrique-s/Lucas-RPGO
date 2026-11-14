@@ -8,6 +8,7 @@ import {
 import { CalendarioView } from "./calendario-view";
 import { CalendarioRealtime } from "./realtime-refresher";
 import { RelogioMesa } from "./relogio";
+import { CapturaMesa } from "@/app/diario/[mesaId]/captura-mesa";
 import { ThemeButton } from "@/components/temas/theme-button";
 import { BotaoVoltar } from "@/components/botao-voltar";
 import "./calendario.css";
@@ -42,6 +43,7 @@ export default async function CalendarioPage({ params }: Params) {
   return (
     <div className="cal-page-wrapper">
       <CalendarioRealtime mesaId={mesaId} calendarioId={calendario.id} />
+      <CapturaMesa mesaId={mesaId} />
 
       <div className="cal-page-topbar">
         <BotaoVoltar

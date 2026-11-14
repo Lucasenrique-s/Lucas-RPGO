@@ -13,6 +13,7 @@ import { lerNavio } from "@/lib/navio";
 import { modificador } from "@/lib/op-rpg";
 import { SELECT_ACAO_QUE_DURA, recebidasDaMesa } from "@/lib/efeitos-servidor";
 import { NarradorShell } from "./painel-narrador";
+import { CapturaMesa } from "@/app/diario/[mesaId]/captura-mesa";
 import { catalogoTiposDoNarrador } from "@/lib/tipos-dano-servidor";
 import { catalogoCondicoesDoNarrador } from "@/lib/combate-servidor";
 import { serializarSessao } from "./sessao/utils";
@@ -111,6 +112,7 @@ export default async function NarradorPage({ params }: Params) {
   });
 
   return (
+    <>
     <NarradorShell
       mesa={{
         id: mesa.id,
@@ -138,5 +140,7 @@ export default async function NarradorPage({ params }: Params) {
         itens: e.itens as { criaturaId: string; quantidade: number }[],
       }))}
     />
+    <CapturaMesa mesaId={mesa.id} />
+    </>
   );
 }

@@ -49,6 +49,8 @@ model Mesa {
   calendario   Calendario?
   ameacas      Ameaca[]
   sessoes      Sessao[]
+  diarioFichas DiarioFicha[]
+  diarioNotas  DiarioNota[]
 
   @@map("mesas")
 }
@@ -996,8 +998,13 @@ model Sessao {
   // aplicação, não no banco — Postgres não tem unique parcial via Prisma puro).
   encerradaEm DateTime? @map("encerrada_em")
 
-  combates Combate[]
-  logs     LogCombate[]
+  // "Sessão 12: A fuga de Enies Lobby". Sessões antigas ficam sem número/título.
+  numero Int?
+  titulo String?
+
+  combates    Combate[]
+  logs        LogCombate[]
+  diarioNotas DiarioNota[]
 
   @@index([mesaId, encerradaEm])
   @@map("sessoes")
@@ -1116,4 +1123,73 @@ model CodigoEmail {
   criadoEm   DateTime @default(now()) @map("criado_em")
 
   @@map("codigos_email")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Diário de bordo. Fica fora do Realtime de propósito (o payload do
+// postgres_changes traria a linha inteira, inclusive notas privadas alheias) e
+// fora da API pública do Supabase: prisma/diario-rls.sql liga o RLS sem
+// políticas. Toda leitura/escrita passa por lib/diario.ts, que checa a permissão.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Personagem, local, item, facção ou pista que o jogador anota.
+model DiarioFicha {
+  id       String @id @default(uuid())
+  mesaId   String @map("mesa_id")
+  mesa     Mesa   @relation(fields: [mesaId], references: [id], onDelete: Cascade)
+  autorId  String @map("autor_id") // userId
+
+  tipo      String // personagem | local | item | faccao | pista
+  nome      String
+  apelidos  String[] @default([])
+  retratoUrl String? @map("retrato_url")
+  campos    Json     @default("{}") // status, relacao, visto em…
+  resumo    String   @default("") // descrição rica
+  visibilidade String @default("privada") // privada | publica
+  // Quem mais pode editar a ficha quando ela é pública (além do autor e do
+  // narrador): userIds que o autor autorizou.
+  editores String[] @default([])
+
+  criadaEm     DateTime @default(now()) @map("criada_em")
+  atualizadaEm DateTime @updatedAt @map("atualizada_em")
+
+  @@index([mesaId, visibilidade])
+  @@index([mesaId, autorId])
+  @@map("diario_fichas")
+}
+
+// Um trecho de texto rico, sempre ligado a uma sessão (null = "Entre sessões").
+model DiarioNota {
+  id       String  @id @default(uuid())
+  mesaId   String  @map("mesa_id")
+  mesa     Mesa    @relation(fields: [mesaId], references: [id], onDelete: Cascade)
+  autorId  String  @map("autor_id")
+  sessaoId String? @map("sessao_id")
+  sessao   Sessao? @relation(fields: [sessaoId], references: [id], onDelete: SetNull)
+
+  diaJogo    Int?    @map("dia_jogo") // dia absoluto do Calendario
+  titulo     String? // opcional: o título que a anotação leva no caderno
+  corpo      String
+  tags       String[] @default([])
+  importante Boolean @default(false)
+  visibilidade String @default("privada")
+
+  criadaEm     DateTime @default(now()) @map("criada_em")
+  atualizadaEm DateTime @updatedAt @map("atualizada_em")
+
+  @@index([mesaId, sessaoId])
+  @@index([mesaId, autorId])
+  @@map("diario_notas")
+}
+
+// Backlinks: recalculada ao salvar a origem. origemTipo/alvoTipo: ficha | nota | sessao.
+model DiarioMencao {
+  origemTipo String @map("origem_tipo")
+  origemId   String @map("origem_id")
+  alvoTipo   String @map("alvo_tipo")
+  alvoId     String @map("alvo_id")
+
+  @@id([origemTipo, origemId, alvoTipo, alvoId])
+  @@index([alvoTipo, alvoId])
+  @@map("diario_mencoes")
 }

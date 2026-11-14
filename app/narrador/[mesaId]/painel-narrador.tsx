@@ -8,6 +8,7 @@ import { CopyCodigoBadge } from "./copy-codigo-badge";
 import { NarradorRealtime } from "./realtime-refresher";
 import { Bandeja } from "@/components/bandeja/bandeja";
 import { ThemeButton } from "@/components/temas/theme-button";
+import Link from "next/link";
 import { BotaoVoltar } from "@/components/botao-voltar";
 import { ModalSolicitarTeste } from "./modal-solicitar-teste";
 import { CalendarioRealtime } from "@/app/calendario/[mesaId]/realtime-refresher";
@@ -162,6 +163,9 @@ export function NarradorShell({
               dataAtualDias={calendario.dataAtualDias}
               isNarrador
             />
+            <Link href={`/diario/${mesa.id}`} className="narrador-editar" title="Diário de bordo da mesa">
+              <i className="fas fa-book-open" /> <span>Diário</span>
+            </Link>
             <button
               type="button"
               className="narrador-editar"

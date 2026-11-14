@@ -8,6 +8,7 @@ import { EFEITO_COR_PADRAO } from "@/lib/estilos-cor";
 import { formulaTexto, faixaDaRolagem, type Dado } from "@/lib/dice";
 import { avaliarFormula, type ContextoAvaliacao } from "@/lib/formula";
 import type { Duracao } from "@/lib/duracao";
+import type { CalendarioConfig } from "@/lib/calendario/engine";
 import { rotuloDuracao } from "@/lib/descricao-gerada";
 import { ATRIBUTOS_RICOS, type Inline, type TipoRef } from "@/lib/descricao-rica";
 
@@ -40,6 +41,8 @@ export type ContextoRico = {
   atributos?: Partial<Record<string, number>>;
   // CD das técnicas de quem lê, pro chip `{{salv:atributo}}` sem CD escrita.
   cdPadrao?: number;
+  // O calendário da mesa: o `@` oferece datas, e o chip de dia diz "hoje", "há 3 dias"…
+  calendario?: { config: CalendarioConfig; hoje: number };
 };
 
 // Atributo (slug) → sigla e nome.
@@ -66,7 +69,27 @@ export function efeitoDaAcao(
   return i >= 0 ? { e: ctx.efeitos[i], i } : null;
 }
 
-export const ICONE_REF: Record<TipoRef, string> = { acao: "fa-bolt", hab: "fa-star", item: "fa-box" };
+export const ICONE_REF: Record<TipoRef, string> = {
+  acao: "fa-bolt",
+  hab: "fa-star",
+  item: "fa-box",
+  ficha: "fa-address-card",
+  nota: "fa-note-sticky",
+  sessao: "fa-book-open",
+  dia: "fa-calendar-day",
+  evento: "fa-calendar-check",
+};
+export const ROTULO_REF: Record<TipoRef, string> = {
+  acao: "Ação",
+  hab: "Habilidade",
+  item: "Item",
+  ficha: "Ficha do diário",
+  nota: "Anotação",
+  sessao: "Sessão",
+  dia: "Data",
+  evento: "Evento",
+};
+export const ICONE_IMAGEM = "fa-image";
 export const ICONE_COND = "fa-triangle-exclamation";
 export const ICONE_ROLAGEM = "fa-dice-d20";
 export const ICONE_DANO_PADRAO = "fa-burst";
@@ -184,7 +207,8 @@ export function aparenciaDoAtomo(
   switch (no.t) {
     case "ref": {
       const info = ctx?.refs?.[`${no.tipo}:${no.id}`];
-      const apagada = !!ctx?.refs && !info;
+      // Data do calendário não tem cadastro: nunca é "apagada".
+      const apagada = no.tipo !== "dia" && !!ctx?.refs && !info;
       return {
         icone: info?.icone ?? ICONE_REF[no.tipo],
         rotulo: info?.titulo ?? no.nome,
@@ -284,5 +308,7 @@ export function aparenciaDoAtomo(
     }
     case "icone":
       return { icone: `fa-${no.slug}`, rotulo: "", classe: "desc-chip--icone" };
+    case "imagem":
+      return { icone: ICONE_IMAGEM, rotulo: no.legenda || "imagem", classe: "desc-chip--imagem" };
   }
 }

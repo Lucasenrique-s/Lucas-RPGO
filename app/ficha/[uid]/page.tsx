@@ -32,6 +32,9 @@ import { abasDaFicha, ehSubficha, perfilDe } from "@/lib/subficha";
 import { acoesEmCurso, comAcoesEmCurso } from "@/lib/turno";
 import { PerfilSidebar } from "./perfil-sidebar";
 import { FichaTabs } from "./ficha-tabs";
+import { carregarDiario } from "@/lib/diario-carregar";
+import { CapturaMesa } from "@/app/diario/[mesaId]/captura-mesa";
+import "@/app/diario/[mesaId]/diario.css";
 import { RelogioMesa } from "../../calendario/[mesaId]/relogio";
 import { FichaRealtime } from "./realtime-refresher";
 import { Bandeja } from "@/components/bandeja/bandeja";
@@ -223,7 +226,7 @@ export default async function FichaPage({ params, searchParams }: Params) {
 
   // Pré-carrega mensagens do chat + calendário + quem joga junto + subfichas em
   // paralelo. Tripulação = personagens que compartilham o mesaId.
-  const [catalogoTipos, catalogoCondicoes, { sessaoId, combate }, mensagensIniciais, calendario, grupo, subfichasCarregadas, arvoresCopiaveis] =
+  const [catalogoTipos, catalogoCondicoes, { sessaoId, combate }, mensagensIniciais, calendario, grupo, subfichasCarregadas, arvoresCopiaveis, diario] =
     await Promise.all([
     // Tipos de dano do narrador da mesa (Biblioteca do bestiário).
     catalogoTiposDoNarrador(narradorDaMesa),
@@ -285,6 +288,10 @@ export default async function FichaPage({ params, searchParams }: Params) {
         _count: { select: { nos: true, camadas: true } },
       },
     }),
+    // Diário da mesa (só a ficha principal que joga numa mesa). Quem não participa recebe null.
+    personagem.mesaId && !subficha
+      ? carregarDiario(personagem.mesaId, user.id, personagem.userId !== user.id ? { comoUserId: personagem.userId } : undefined)
+      : Promise.resolve(null),
   ]);
 
   // Roster da Tripulação: só os membros da mesa. `de` diz de quem é a subficha.
@@ -325,6 +332,7 @@ export default async function FichaPage({ params, searchParams }: Params) {
     abas: personagem.abas,
     subficha,
     temCalendario: !!(personagem.mesaId && calendario),
+    temDiario: !!diario,
   });
 
   return (
@@ -471,6 +479,7 @@ export default async function FichaPage({ params, searchParams }: Params) {
         turno={combate?.voce ?? null}
         alvosCombate={combate?.participantes ?? []}
         atributoCdTecnicas={personagem.atributoCdTecnicas}
+        diario={diario}
       />
       </CatalogoTiposProvider>
       <div className="ficha-topo-acoes">
@@ -485,6 +494,7 @@ export default async function FichaPage({ params, searchParams }: Params) {
         )}
         <ThemeButton />
       </div>
+      {personagem.mesaId && <CapturaMesa mesaId={personagem.mesaId} />}
       <Bandeja
         userId={user.id}
         userName={personagem.nome}

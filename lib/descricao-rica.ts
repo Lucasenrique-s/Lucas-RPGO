@@ -5,10 +5,11 @@
 // Em linha (podem se aninhar):
 //   **negrito**  *itálico*  __sublinhado__
 //   {{cor:#e67e22|texto}}   {{cor:#e67e22+#3498db:gradiente|texto}}
-//   [[acao:ID|Nome]]  (acao | hab | item)      {{cond:Atordoado}}
+//   [[acao:ID|Nome]]  (acao | hab | item | ficha | nota | sessao | dia | evento)      {{cond:Atordoado}}
 //   {{efeito:vantagem}}  {{efeito:resistencia|Fogo}}   {{dano:Fogo}}
 //   ((2d6+FOR))  ((2d6+FOR|Fogo))  rolagem, com o tipo de dano depois da barra
 //   :skull:  ícone
+//   ![legenda](https://…)  imagem (só http/https)
 //
 // Em bloco (uma linha = um bloco):
 //   -  ou  -:skull:  tópico (2 espaços de recuo por nível)      1.  numerado
@@ -16,7 +17,9 @@
 //
 // Barra invertida escapa o que viraria marcação: `\*`, `\{`, `\-`…
 
-export type TipoRef = "acao" | "hab" | "item";
+// ficha | nota | sessao: o diário de bordo (lib/diario.ts).
+// dia | evento: o calendário da mesa (`[[dia:420|13 de março, 1523]]`, o id é o dia absoluto).
+export type TipoRef = "acao" | "hab" | "item" | "ficha" | "nota" | "sessao" | "dia" | "evento";
 export type MarcaTexto = "negrito" | "italico" | "sublinhado";
 
 export type Inline =
@@ -38,7 +41,9 @@ export type Inline =
   | { t: "attr"; atributo: string }
   | { t: "dano"; tipo: string }
   | { t: "icone"; slug: string }
-  | { t: "rolagem"; formula: string; dano?: string };
+  | { t: "rolagem"; formula: string; dano?: string }
+  // Imagem do diário: `![legenda](https://…)`. Chip no editor, <img> na leitura.
+  | { t: "imagem"; url: string; legenda: string };
 
 export type Bloco =
   | { b: "p"; filhos: Inline[] }
@@ -63,7 +68,7 @@ export const ATRIBUTOS_RICOS: { slug: string; sigla: string; nome: string }[] = 
 export const siglaDoAtributo = (slug: string) =>
   ATRIBUTOS_RICOS.find((a) => a.slug === slug)?.sigla ?? slug.slice(0, 3).toUpperCase();
 
-const ESC = "\\*_[{(:-#>.}";
+const ESC = "\\*_[{(:-#>.}!";
 const PALAVRA = String.raw`\p{L}\p{N}_:`;
 const HEX = String.raw`#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?`;
 
@@ -71,7 +76,11 @@ const HEX = String.raw`#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?`;
 
 const ATOMOS: { re: RegExp; fazer: (m: RegExpExecArray) => Inline }[] = [
   {
-    re: /\[\[(acao|hab|item):([^|\]\n]+)\|([^\]\n]*)\]\]/uy,
+    re: /!\[([^\]\n]*)\]\((https?:\/\/[^\s()]+)\)/uy,
+    fazer: (m) => ({ t: "imagem", legenda: m[1], url: m[2] }),
+  },
+  {
+    re: /\[\[(acao|hab|item|ficha|nota|sessao|dia|evento):([^|\]\n]+)\|([^\]\n]*)\]\]/uy,
     fazer: (m) => ({ t: "ref", tipo: m[1] as TipoRef, id: m[2], nome: m[3] }),
   },
   { re: /\{\{cond:([^}\n]+)\}\}/uy, fazer: (m) => ({ t: "cond", nome: m[1].trim() }) },
@@ -260,6 +269,7 @@ function escaparTexto(v: string): string {
     else if (c === "*") esc = !ehEspaco(prox) || !ehEspaco(ant);
     else if (c === "_") esc = prox === "_" || ant === "_";
     else if (c === "[" || c === "{" || c === "(") esc = prox === c;
+    else if (c === "!") esc = prox === "[";
     else if (c === "}") esc = prox === "}";
     else if (c === ":") {
       const resto = /^:([a-z][a-z0-9-]*):/.exec(v.slice(i));
@@ -370,6 +380,9 @@ function partes(nos: Inline[]): ParteToken[] {
       case "rolagem":
         out.push({ v: `((${no.formula}${no.dano ? `|${no.dano}` : ""}))` });
         break;
+      case "imagem":
+        out.push({ v: `![${no.legenda.replace(/[\]\n]/g, " ")}](${no.url})` });
+        break;
     }
   }
   return out;
@@ -473,6 +486,9 @@ export function textoPuroInline(nos: Inline[]): string {
         break;
       case "icone":
         break;
+      case "imagem":
+        s += no.legenda;
+        break;
     }
   }
   return s;
@@ -503,6 +519,13 @@ export function temMarcacaoRica(texto: string | null | undefined): boolean {
   return parseDescricaoRica(texto).some(
     (bl) => bl.b !== "p" || bl.filhos.some((n) => n.t !== "texto"),
   );
+}
+
+// As imagens do texto, na ordem em que aparecem.
+export function imagensDeRica(texto: string | null | undefined): { url: string; legenda: string }[] {
+  const out: { url: string; legenda: string }[] = [];
+  for (const no of todosInline(texto)) if (no.t === "imagem") out.push({ url: no.url, legenda: no.legenda });
+  return out;
 }
 
 export function referenciasDeRica(texto: string | null | undefined): { tipo: TipoRef; id: string }[] {

@@ -239,7 +239,12 @@ export async function iniciarSessao(mesaId: string) {
   await autorizarNarrador(mesaId);
 
   const existente = await prisma.sessao.findFirst({ where: { mesaId, encerradaEm: null } });
-  const sessao = existente ?? (await prisma.sessao.create({ data: { mesaId } }));
+  let sessao = existente;
+  if (!sessao) {
+    // Numera a sessão em sequência (o diário a mostra como "Sessão N").
+    const ultima = await prisma.sessao.aggregate({ where: { mesaId }, _max: { numero: true } });
+    sessao = await prisma.sessao.create({ data: { mesaId, numero: (ultima._max.numero ?? 0) + 1 } });
+  }
 
   revalidar(mesaId);
   return serializarSessao(await buscarSessaoCompleta(sessao.id));

@@ -10,6 +10,7 @@ import {
   EFEITOS_COR,
   ICONE_COND,
   ICONE_REF,
+  ROTULO_REF,
   PALETA_TEXTO,
   estiloDeCor,
   resumoRolagem,
@@ -21,18 +22,29 @@ import {
 
 /* ─── Inserir (ação, habilidade, item, condição, efeito, dano) ─── */
 
-type Categoria = "tudo" | "daacao" | "acao" | "hab" | "item" | "cond" | "efeito" | "dano" | "attr";
+import { dataParaDias, diasParaData, type CalendarioConfig } from "@/lib/calendario/engine";
+import { rotuloDia } from "@/lib/diario-tipos";
+
+type Categoria = "tudo" | "daacao" | "acao" | "hab" | "item" | "ficha" | "nota" | "sessao" | "dia" | "evento" | "cond" | "efeito" | "dano" | "attr";
 const CATEGORIAS: { id: Categoria; nome: string }[] = [
   { id: "tudo", nome: "Tudo" },
   { id: "daacao", nome: "Desta ação" },
   { id: "acao", nome: "Ações" },
   { id: "hab", nome: "Habilidades" },
   { id: "item", nome: "Itens" },
+  { id: "ficha", nome: "Fichas" },
+  { id: "nota", nome: "Anotações" },
+  { id: "sessao", nome: "Sessões" },
+  { id: "dia", nome: "Datas" },
+  { id: "evento", nome: "Eventos" },
   { id: "cond", nome: "Condições" },
   { id: "efeito", nome: "Efeitos" },
   { id: "dano", nome: "Dano" },
   { id: "attr", nome: "Atributos" },
 ];
+
+// Só aparecem no diário (quando há o que listar).
+const DO_DIARIO = new Set<Categoria>(["ficha", "nota", "sessao", "dia", "evento"]);
 
 type Opcao = {
   chave: string;
@@ -57,6 +69,9 @@ export function PainelInserir({
   efeitosAcao = [],
   duracaoAcao,
   inicial = "tudo",
+  tiposNovos,
+  aoCriar,
+  calendario,
   aoEscolher,
   aoFechar,
 }: {
@@ -67,6 +82,11 @@ export function PainelInserir({
   efeitosAcao?: OpcaoEfeitoAcao[];
   duracaoAcao?: string;
   inicial?: Categoria;
+  // Diário: o nome digitado não existe? Oferece criar a ficha na hora, escolhendo o tipo.
+  tiposNovos?: { id: string; nome: string; icone: string }[];
+  aoCriar?: (nome: string, tipo: string) => void;
+  // Calendário da mesa: abre a categoria Datas (hoje, ontem, amanhã e um seletor).
+  calendario?: { config: CalendarioConfig; hoje: number };
   aoEscolher: (no: Atomo) => void;
   aoFechar: () => void;
 }) {
@@ -76,7 +96,7 @@ export function PainelInserir({
   const [pendente, setPendente] = useState<Opcao | null>(null);
 
   const todas = useMemo<Opcao[]>(() => {
-    const rotuloRef = { acao: "Ação", hab: "Habilidade", item: "Item" } as const;
+    const rotuloRef = ROTULO_REF;
     return [
       ...efeitosAcao.map((e): Opcao => ({
         chave: `daacao:${e.i}`,
@@ -98,6 +118,24 @@ export function PainelInserir({
               no: { t: "duracao" } as Atomo,
             },
           ]
+        : []),
+      ...(calendario
+        ? ([
+            ["Hoje", 0],
+            ["Ontem", -1],
+            ["Amanhã", 1],
+          ] as const).map(([nome, delta]): Opcao => {
+            const dias = calendario.hoje + delta;
+            const rotulo = rotuloDia(dias, calendario.config);
+            return {
+              chave: `dia:${dias}`,
+              cat: "dia",
+              rotulo: `${nome} · ${rotulo}`,
+              icone: ICONE_REF.dia,
+              rotuloCat: ROTULO_REF.dia,
+              no: { t: "ref", tipo: "dia", id: String(dias), nome: rotulo },
+            };
+          })
         : []),
       ...refs.map((r): Opcao => ({
         chave: `${r.tipo}:${r.id}`,
@@ -152,7 +190,7 @@ export function PainelInserir({
         no: { t: "dano", tipo: t.nome },
       })),
     ];
-  }, [refs, condicoes, tiposDano, efeitosAcao, duracaoAcao]);
+  }, [refs, condicoes, tiposDano, efeitosAcao, duracaoAcao, calendario]);
 
   const temDaAcao = efeitosAcao.length > 0 || !!duracaoAcao;
   const q = busca.trim().toLowerCase();
@@ -223,7 +261,7 @@ export function PainelInserir({
         }}
       />
       <div className="desc-filtros" role="group" aria-label="Categoria">
-        {CATEGORIAS.filter((c) => c.id !== "daacao" || temDaAcao).map((c) => (
+        {CATEGORIAS.filter((c) => (c.id !== "daacao" || temDaAcao) && (!DO_DIARIO.has(c.id) || todas.some((o) => o.cat === c.id))).map((c) => (
           <button
             key={c.id}
             type="button"
@@ -254,6 +292,64 @@ export function PainelInserir({
           </button>
         ))}
         {lista.length === 0 && <span className="desc-painel-dica">Nada encontrado.</span>}
+      </div>
+      {cat === "dia" && calendario && (
+        <SeletorDeData
+          calendario={calendario}
+          aoEscolher={(dias) =>
+            aoEscolher({ t: "ref", tipo: "dia", id: String(dias), nome: rotuloDia(dias, calendario.config) })
+          }
+        />
+      )}
+      {aoCriar && tiposNovos && busca.trim() && !todas.some((o) => o.cat === "ficha" && o.rotulo.toLowerCase() === q) && (
+        <div className="desc-criar">
+          <span className="desc-painel-dica">Criar “{busca.trim()}” como:</span>
+          <div className="desc-opcoes">
+            {tiposNovos.map((t) => (
+              <button key={t.id} type="button" className="desc-opcao" onClick={() => aoCriar(busca.trim(), t.id)}>
+                <i className={`fas ${t.icone}`} /> {t.nome}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Data do calendário ─────────────────────────────────── */
+
+// Dia, mês e ano do calendário da mesa → o dia absoluto.
+function SeletorDeData({
+  calendario,
+  aoEscolher,
+}: {
+  calendario: { config: CalendarioConfig; hoje: number };
+  aoEscolher: (dias: number) => void;
+}) {
+  const { config, hoje } = calendario;
+  const h = dataParaDias(hoje, config);
+  const [dia, setDia] = useState(h.dia);
+  const [mes, setMes] = useState(h.mes);
+  const [ano, setAno] = useState(h.ano);
+  const maxDia = config.meses[mes - 1]?.dias ?? 31;
+  const valido = Number.isInteger(dia) && dia >= 1 && dia <= maxDia && Number.isInteger(ano);
+  return (
+    <div className="desc-criar">
+      <span className="desc-painel-dica">Escolher outra data:</span>
+      <div className="desc-linha-par" style={{ gap: 6, flexWrap: "wrap" }}>
+        <input type="number" min={1} max={maxDia} value={dia} aria-label="Dia" style={{ width: 64 }} onChange={(e) => setDia(Number(e.target.value))} />
+        <select value={mes} aria-label="Mês" onChange={(e) => setMes(Number(e.target.value))}>
+          {config.meses.map((m, i) => (
+            <option key={i} value={i + 1}>
+              {m.nome}
+            </option>
+          ))}
+        </select>
+        <input type="number" value={ano} aria-label="Ano" style={{ width: 80 }} onChange={(e) => setAno(Number(e.target.value))} />
+        <button type="button" className="desc-opcao" disabled={!valido} onClick={() => aoEscolher(diasParaData({ ano, mes, dia }, config))}>
+          <i className="fas fa-calendar-day" /> Inserir data
+        </button>
       </div>
     </div>
   );

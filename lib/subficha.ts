@@ -12,7 +12,8 @@ export type AbaFicha =
   | "inventario"
   | "subfichas"
   | "tripulacao"
-  | "calendario";
+  | "calendario"
+  | "diario";
 
 // Blocos da sidebar que um perfil esconde.
 export type BlocoFicha = "nivel" | "pp" | "exaustao" | "descanso" | "atributos" | "testes";
@@ -27,10 +28,11 @@ export const ABAS: { id: AbaFicha; label: string; icone: string }[] = [
   { id: "subfichas", label: "Subfichas", icone: "fa-address-card" },
   { id: "tripulacao", label: "Tripulação", icone: "fa-users" },
   { id: "calendario", label: "Calendário", icone: "fa-calendar-days" },
+  { id: "diario", label: "Diário", icone: "fa-book-open" },
 ];
 
 // Abas que só a ficha principal tem.
-const SO_DA_PRINCIPAL: AbaFicha[] = ["subfichas", "tripulacao", "calendario"];
+const SO_DA_PRINCIPAL: AbaFicha[] = ["subfichas", "tripulacao", "calendario", "diario"];
 
 // Abas que a subficha pode ligar e desligar.
 export const ABAS_DE_SUBFICHA = ABAS.filter((a) => !SO_DA_PRINCIPAL.includes(a.id));
@@ -103,6 +105,8 @@ export function abasDaFicha(ficha: {
   abas: unknown;
   subficha: boolean;
   temCalendario: boolean;
+  // O diário só existe pra ficha principal que joga numa mesa.
+  temDiario?: boolean;
 }): AbaFicha[] {
   const escolhidas = new Set<AbaFicha>(
     (ficha.subficha && lerAbas(ficha.abas)) || perfilDe(ficha.perfil).abas,
@@ -110,6 +114,7 @@ export function abasDaFicha(ficha: {
   return ABAS.filter((a) => {
     if (!escolhidas.has(a.id)) return false;
     if (a.id === "calendario") return ficha.temCalendario;
+    if (a.id === "diario") return !ficha.subficha && !!ficha.temDiario;
     return !ficha.subficha || !SO_DA_PRINCIPAL.includes(a.id);
   }).map((a) => a.id);
 }

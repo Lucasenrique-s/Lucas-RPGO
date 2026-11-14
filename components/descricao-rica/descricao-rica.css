@@ -554,3 +554,49 @@
 .desc-l button.desc-chip { max-width: 100%; text-align: left; }
 .desc-l .desc-chip > i { margin-right: 4px; }
 .desc-l .desc-chip .desc-chip-detalhe { margin-left: 6px; }
+
+/* Imagem do diário (leitura): ocupa a largura do texto, legenda embaixo. */
+.desc-imagem {
+  display: block;
+  margin: 6px 0;
+  max-width: 100%;
+  text-decoration: none;
+  color: inherit;
+}
+.desc-imagem img {
+  display: block;
+  max-width: 100%;
+  max-height: 420px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, rgba(128, 128, 128, 0.35));
+}
+.desc-imagem-legenda {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.85em;
+  opacity: 0.75;
+}
+
+/* Imagem dentro do editor: miniatura inline, apagada como um chip. */
+.desc-imagem-ed {
+  display: inline-block;
+  vertical-align: bottom;
+  margin: 4px 2px;
+  max-width: 100%;
+  line-height: 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.desc-imagem-ed img {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+}
+
+/* "Criar ficha na hora" no painel do @. */
+.desc-criar {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}

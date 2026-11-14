@@ -6,6 +6,7 @@ import { parseFormulaDados } from "@/lib/dice";
 import type { TipoDanoCatalogo } from "@/lib/tipos-dano";
 import {
   EFEITOS_CATALOGO,
+  ROTULO_REF,
   resumoRolagem,
   type Atomo,
   type ContextoRico,
@@ -28,6 +29,7 @@ const NOME_DO_TIPO: Record<Atomo["t"], string> = {
   duracao: "duração",
   salv: "salvaguarda",
   attr: "atributo",
+  imagem: "imagem",
 };
 
 type Comuns = { aoRemover: () => void; aoFechar: () => void };
@@ -382,7 +384,7 @@ function EdRef({
   const doTipo = refs.filter((r) => r.tipo === no.tipo);
   const existe = doTipo.some((r) => r.id === no.id);
   const [id, setId] = useState(no.id);
-  const nomeTipo = { acao: "Ação", hab: "Habilidade", item: "Item" }[no.tipo];
+  const nomeTipo = ROTULO_REF[no.tipo];
   const aplicar = () => aoSalvar({ t: "ref", tipo: no.tipo, id, nome: doTipo.find((r) => r.id === id)?.nome ?? no.nome });
   return (
     <Moldura no={no} aoAplicar={aplicar} aoRemover={aoRemover} aoFechar={aoFechar}>
