@@ -298,7 +298,12 @@ export function Caderno({
   const minhasFichas = useMemo(() => fichas.filter((f) => f.autorId === meuId), [fichas, meuId]);
   const minhasNotas = useMemo(() => notas.filter((n) => n.autorId === meuId), [notas, meuId]);
   // Do mais antigo ao mais novo, como se lê um diário.
-  const secoes = useMemo(() => montarLinha(sessoes, minhasFichas, minhasNotas).reverse(), [sessoes, minhasFichas, minhasNotas]);
+  // Sessão sem nada anotado não ganha página (senão viram dez "nada anotado" seguidos);
+  // a sessão ao vivo fica, pra página de escrever ter onde se apoiar.
+  const secoes = useMemo(
+    () => montarLinha(sessoes, minhasFichas, minhasNotas).reverse().filter((s) => s.itens.length > 0 || s.sessao?.ativa),
+    [sessoes, minhasFichas, minhasNotas],
+  );
   const ativa = sessoes.find((s) => s.ativa) ?? null;
 
   // Com duas páginas, a guarda (verso da capa) ocupa a página lógica 0.
