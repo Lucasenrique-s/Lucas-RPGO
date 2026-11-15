@@ -27,6 +27,74 @@ export async function acessoAoDiario(mesaId: string, userId: string): Promise<Ac
   return membro ? { userId, narrador: false } : null;
 }
 
+// Cada personagem de jogador da mesa tem sua página na wiki (pública, do jogador). Cria as que
+// faltam; se o jogador já tinha uma página com o mesmo nome, adota essa em vez de duplicar.
+// Idempotente e barata: duas consultas quando não há nada a fazer.
+export async function sincronizarPaginasDePersonagens(mesaId: string): Promise<void> {
+  const mesa = await prisma.mesa.findUnique({ where: { id: mesaId }, select: { userId: true } });
+  if (!mesa) return;
+  const pers = await prisma.personagem.findMany({
+    where: {
+      mesaId,
+      donoPersonagemId: null,
+      donoMesaId: null,
+      molde: false,
+      doNarrador: false,
+      perfil: "personagem",
+      userId: { not: mesa.userId },
+    },
+    select: { id: true, userId: true, nome: true, fotoUrl: true },
+  });
+  if (pers.length === 0) return;
+  const jaTem = await prisma.diarioFicha.findMany({
+    where: { mesaId, personagemId: { in: pers.map((p) => p.id) } },
+    select: { personagemId: true },
+  });
+  const tem = new Set(jaTem.map((f) => f.personagemId));
+  const faltam = pers.filter((p) => !tem.has(p.id) && p.nome.trim());
+  if (faltam.length === 0) return;
+
+  const sessao = await prisma.sessao.findFirst({
+    where: { mesaId },
+    orderBy: [{ encerradaEm: { sort: "asc", nulls: "first" } }, { iniciadaEm: "desc" }],
+    select: { id: true },
+  });
+  for (const p of faltam) {
+    const nome = p.nome.trim().slice(0, 80);
+    const propria = await prisma.diarioFicha.findFirst({
+      where: { mesaId, autorId: p.userId, tipo: "personagem", personagemId: null, nome: { equals: nome, mode: "insensitive" } },
+      select: { id: true, visibilidade: true },
+    });
+    try {
+      if (propria) {
+        await prisma.diarioFicha.update({
+          where: { id: propria.id },
+          data: {
+            personagemId: p.id,
+            ...(propria.visibilidade !== "publica" ? { visibilidade: "publica", reveladaEm: new Date(), reveladaSessaoId: sessao?.id ?? null } : {}),
+          },
+        });
+      } else {
+        await prisma.diarioFicha.create({
+          data: {
+            mesaId,
+            autorId: p.userId,
+            tipo: "personagem",
+            nome,
+            retratoUrl: p.fotoUrl && /^https?:\/\//i.test(p.fotoUrl) ? p.fotoUrl : null,
+            visibilidade: "publica",
+            reveladaEm: new Date(),
+            reveladaSessaoId: sessao?.id ?? null,
+            personagemId: p.id,
+          },
+        });
+      }
+    } catch {
+      // Outra requisição criou no mesmo instante (índice único): a página já existe.
+    }
+  }
+}
+
 type OrigemTipo = "ficha" | "nota";
 const ALVOS = ["ficha", "nota", "sessao", "dia", "evento", "marco"] as const;
 type AlvoTipo = (typeof ALVOS)[number];

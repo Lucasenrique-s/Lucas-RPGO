@@ -437,6 +437,7 @@ export function FichaTabs({
             ehNarrador={diario.ehNarrador}
             fichas={diario.fichas}
             notas={diario.notas}
+            notasWiki={diario.notasWiki}
             sessoes={diario.sessoes}
             mencoes={diario.mencoes}
             relacoes={diario.relacoes}

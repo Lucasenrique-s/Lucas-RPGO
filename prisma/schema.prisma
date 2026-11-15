@@ -1149,15 +1149,51 @@ model DiarioFicha {
   // Quem mais pode editar a ficha quando ela é pública (além do autor e do
   // narrador): userIds que o autor autorizou.
   editores String[] @default([])
+  // Wiki: a página "oculta" só o narrador vê; ao revelar, vira pública e guarda
+  // em que sessão e quando.
+  reveladaSessaoId String?   @map("revelada_sessao_id")
+  reveladaEm       DateTime? @map("revelada_em")
+  // Página criada automaticamente para o personagem de um jogador (Personagem.id, sem FK).
+  personagemId     String?   @unique @map("personagem_id")
 
   criadaEm     DateTime @default(now()) @map("criada_em")
   atualizadaEm DateTime @updatedAt @map("atualizada_em")
 
-  retratos DiarioRetrato[]
+  retratos  DiarioRetrato[]
+  notasWiki DiarioWikiNota[]
+  versoes   DiarioFichaVersao[]
 
   @@index([mesaId, visibilidade])
   @@index([mesaId, autorId])
   @@map("diario_fichas")
+}
+
+// Anotações que o autor escolheu mostrar na página pública ("Anotações da mesa").
+model DiarioWikiNota {
+  fichaId String @map("ficha_id")
+  ficha   DiarioFicha @relation(fields: [fichaId], references: [id], onDelete: Cascade)
+  notaId  String @map("nota_id")
+  nota    DiarioNota  @relation(fields: [notaId], references: [id], onDelete: Cascade)
+
+  @@id([fichaId, notaId])
+  @@index([notaId])
+  @@map("diario_wiki_notas")
+}
+
+// Histórico de edições de uma página pública: o estado de antes de cada edição.
+model DiarioFichaVersao {
+  id       String   @id @default(uuid())
+  fichaId  String   @map("ficha_id")
+  ficha    DiarioFicha @relation(fields: [fichaId], references: [id], onDelete: Cascade)
+  editorId String   @map("editor_id")
+  nome     String
+  apelidos String[] @default([])
+  campos   Json     @default("{}")
+  resumo   String   @default("")
+  criadaEm DateTime @default(now()) @map("criada_em")
+
+  @@index([fichaId, criadaEm])
+  @@map("diario_ficha_versoes")
 }
 
 // Vários retratos por página de entidade (o primeiro por `ordem` é o principal).
@@ -1219,6 +1255,8 @@ model DiarioNota {
 
   criadaEm     DateTime @default(now()) @map("criada_em")
   atualizadaEm DateTime @updatedAt @map("atualizada_em")
+
+  wiki DiarioWikiNota[]
 
   @@index([mesaId, sessaoId])
   @@index([mesaId, autorId])

@@ -13,6 +13,7 @@ import {
   type MencaoDiarioDTO,
   type RelacaoDTO,
   type NotaDiarioDTO,
+  type NotaWikiDTO,
   type SessaoDiarioDTO,
   type TipoFichaDiario,
 } from "@/lib/diario-tipos";
@@ -30,10 +31,12 @@ import {
   confirmar,
   iconeDoTipo,
 } from "./diario-partes";
-import { apagarNotaDiario } from "./actions";
+import { apagarNotaDiario, apagarVariosDiario } from "./actions";
+import { podeApagarDiario } from "@/lib/diario-permissao";
 import { CapturaRapida } from "./captura-rapida";
 import { DiarioAoVivo } from "./ao-vivo";
 import { Caderno } from "./caderno";
+import { PublicarDialogo, Wiki } from "./wiki";
 import { exigir } from "@/lib/acoes";
 
 type Props = {
@@ -42,6 +45,8 @@ type Props = {
   ehNarrador: boolean;
   fichas: FichaDiarioDTO[];
   notas: NotaDiarioDTO[];
+  // Anotações que os autores marcaram pra aparecer nas páginas da wiki.
+  notasWiki?: NotaWikiDTO[];
   sessoes: SessaoDiarioDTO[];
   mencoes: MencaoDiarioDTO[];
   relacoes: RelacaoDTO[];
@@ -84,6 +89,7 @@ export function DiarioView({
   ehNarrador,
   fichas,
   notas,
+  notasWiki = [],
   sessoes,
   mencoes,
   relacoes,
@@ -104,17 +110,26 @@ export function DiarioView({
   // No caderno, a página da entidade abre na folha da direita, não na gaveta.
   const [folhaId, setFolhaId] = useState<string | null>(null);
   const [novoAberto, setNovoAberto] = useState(false);
+  // Seleção em massa (linha do tempo): chaves "f:id" e "n:id".
+  const [selecionando, setSelecionando] = useState(false);
+  const [marcados, setMarcados] = useState<string[]>([]);
+  const [apagandoVarios, setApagandoVarios] = useState(false);
   // Como ler o diário: a linha do tempo ou o caderno (lembrado no aparelho).
-  const [modo, setModoEstado] = useState<"linha" | "caderno">("linha");
+  const [modo, setModoEstado] = useState<"linha" | "caderno" | "wiki">("linha");
+  // Página aberta na wiki, e a ficha que está no diálogo de publicar.
+  const [wikiId, setWikiId] = useState<string | null>(null);
+  const [publicando, setPublicando] = useState<FichaDiarioDTO | null>(null);
   const modoRef = useRef(modo);
   useEffect(() => {
     modoRef.current = modo;
   }, [modo]);
   // Cada clique no botão de modo, dentro do caderno, pede pra ele descer da tela.
   const [pedidoSair, setPedidoSair] = useState(0);
-  const setModo = useCallback((m: "linha" | "caderno") => {
+  const setModo = useCallback((m: "linha" | "caderno" | "wiki") => {
     setModoEstado(m);
     setFolhaId(null);
+    // A wiki não é lembrada: o diário sempre abre no caderno (ou na linha, se foi a escolha).
+    if (m === "wiki") return;
     try {
       window.localStorage.setItem("rpgo:diario:modo", m);
     } catch {
@@ -199,6 +214,7 @@ export function DiarioView({
   const abrirRef = useCallback((tipo: TipoRef, id: string) => {
     if (tipo === "ficha") {
       if (modoRef.current === "caderno") setFolhaId(id);
+      else if (modoRef.current === "wiki") setWikiId(id);
       else setGaveta({ m: "ficha", id });
     } else if (tipo === "dia" || tipo === "evento") {
       // O calendário da mesa tem página própria.
@@ -239,6 +255,42 @@ export function DiarioView({
   const fichaDe = (id: string) => fichas.find((f) => f.id === id) ?? null;
   const notaDe = (id: string) => notas.find((n) => n.id === id) ?? null;
 
+  const acessoMeu = useMemo(() => ({ userId: meuId, narrador: ehNarrador }), [meuId, ehNarrador]);
+  const podeApagarItem = useCallback(
+    (it: ItemLinha) => !somenteLeitura && podeApagarDiario(acessoMeu, it.k === "ficha" ? it.ficha : it.nota),
+    [acessoMeu, somenteLeitura],
+  );
+  const chaveDe = (it: ItemLinha) => (it.k === "ficha" ? `f:${it.id}` : `n:${it.id}`);
+  const alternarMarca = (chave: string) => setMarcados((m) => (m.includes(chave) ? m.filter((x) => x !== chave) : [...m, chave]));
+  const sairDaSelecao = () => {
+    setSelecionando(false);
+    setMarcados([]);
+  };
+
+  async function apagarMarcados() {
+    if (marcados.length === 0 || apagandoVarios) return;
+    const n = marcados.length;
+    if (!(await confirmar(`Apagar ${n} ${n === 1 ? "item" : "itens"}? Isso não pode ser desfeito.`))) return;
+    setApagandoVarios(true);
+    try {
+      const r = exigir(
+        await apagarVariosDiario(
+          mesaId,
+          marcados.filter((c) => c.startsWith("f:")).map((c) => c.slice(2)),
+          marcados.filter((c) => c.startsWith("n:")).map((c) => c.slice(2)),
+        ),
+      );
+      setGaveta(null);
+      sairDaSelecao();
+      atualizar();
+      if (r.ignoradas > 0) avisar(`${r.ignoradas} ${r.ignoradas === 1 ? "item não pôde" : "itens não puderam"} ser apagado${r.ignoradas === 1 ? "" : "s"} (página de personagem da mesa, ou sem permissão).`);
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : "Falha ao apagar.");
+    } finally {
+      setApagandoVarios(false);
+    }
+  }
+
   async function apagarNota(id: string) {
     if (!(await confirmar("Apagar esta anotação?"))) return;
     try {
@@ -258,11 +310,15 @@ export function DiarioView({
         <button
           type="button"
           className="diario-aba"
-          onClick={() => (modo === "linha" ? setModo("caderno") : setPedidoSair((n) => n + 1))}
+          aria-pressed={modo !== "wiki"}
+          onClick={() => (modo === "linha" || modo === "wiki" ? setModo("caderno") : setPedidoSair((n) => n + 1))}
           title={modo === "linha" ? "Ler como caderno" : "Ler como linha do tempo"}
         >
-          <i className={`fas ${modo === "linha" ? "fa-timeline" : "fa-book"}`} /> {modo === "linha" ? "Linha do tempo" : "Caderno"}{" "}
-          <i className="fas fa-repeat" aria-hidden />
+          <i className={`fas ${modo === "linha" ? "fa-timeline" : "fa-book"}`} /> {modo === "linha" ? "Linha do tempo" : "Meu caderno"}{" "}
+          {modo !== "wiki" && <i className="fas fa-repeat" aria-hidden />}
+        </button>
+        <button type="button" className="diario-aba" aria-pressed={modo === "wiki"} onClick={() => setModo("wiki")}>
+          <i className="fas fa-earth-americas" /> Wiki da mesa
         </button>
       </div>
       {modo === "linha" && (
@@ -313,6 +369,11 @@ export function DiarioView({
           </select>
         )}
         {!somenteLeitura && (
+          <button type="button" className="diario-btn" aria-pressed={selecionando} onClick={() => (selecionando ? sairDaSelecao() : setSelecionando(true))}>
+            <i className="fas fa-square-check" /> {selecionando ? "Cancelar seleção" : "Selecionar"}
+          </button>
+        )}
+        {!somenteLeitura && (
           <div className="diario-novo">
             <button type="button" className="diario-btn diario-btn--primario" onClick={() => setNovoAberto((v) => !v)} aria-expanded={novoAberto}>
               <i className="fas fa-plus" /> Novo
@@ -355,9 +416,32 @@ export function DiarioView({
         )}
       </div>
 
+        {selecionando && (
+          <div className="diario-selecao">
+            <span>
+              <b>{marcados.length}</b> {marcados.length === 1 ? "selecionado" : "selecionados"}
+            </span>
+            <button
+              type="button"
+              className="diario-btn"
+              onClick={() =>
+                setMarcados(visiveis.flatMap(({ itens }) => itens.filter(podeApagarItem).map(chaveDe)))
+              }
+            >
+              Selecionar tudo o que aparece
+            </button>
+            <button type="button" className="diario-btn" onClick={() => setMarcados([])} disabled={marcados.length === 0}>
+              Limpar
+            </button>
+            <button type="button" className="diario-btn diario-btn--perigo" onClick={() => void apagarMarcados()} disabled={marcados.length === 0 || apagandoVarios}>
+              <i className="fas fa-trash" /> Apagar {marcados.length > 0 ? `(${marcados.length})` : ""}
+            </button>
+          </div>
+        )}
         </>
       )}
 
+      {modo !== "wiki" && (
       <p className="diario-aviso">
         <i className="fas fa-eye" />{" "}
         {avisoLeitura ??
@@ -365,8 +449,36 @@ export function DiarioView({
           ? "Você vê o diário de todos os jogadores."
           : "Suas anotações são privadas, mas o narrador também pode lê-las.")}
       </p>
+      )}
 
-      {modo === "caderno" ? (
+      {modo === "wiki" ? (
+        <Wiki
+          mesaId={mesaId}
+          meuId={meuId}
+          ehNarrador={ehNarrador}
+          somenteLeitura={somenteLeitura}
+          fichas={fichas}
+          notas={notas}
+          notasWiki={notasWiki}
+          sessoes={sessoes}
+          mencoes={mencoes}
+          relacoes={relacoes}
+          autores={autores}
+          participantes={membros}
+          contexto={contexto}
+          refs={refsOpcoes}
+          cfg={cfg}
+          abertaId={wikiId}
+          aoAbrir={setWikiId}
+          aoNovaPagina={() => setGaveta({ m: "novaFicha" })}
+          aoEditar={(id) => setGaveta({ m: "editFicha", id })}
+          aoAbrirNoCaderno={(id) => {
+            setModo("caderno");
+            setFolhaId(id);
+          }}
+          aoAtualizar={atualizar}
+        />
+      ) : modo === "caderno" ? (
         <Caderno
           mesaId={mesaId}
           meuId={meuId}
@@ -385,6 +497,10 @@ export function DiarioView({
           aoAbrirFicha={setFolhaId}
           aoFecharFolha={() => setFolhaId(null)}
           aoAbrirCompleta={(id) => setGaveta({ m: "ficha", id })}
+          aoVerNaWiki={(id) => {
+            setModo("wiki");
+            setWikiId(id);
+          }}
           aoAbrirNota={(id) => setGaveta({ m: "nota", id })}
           aoSalvou={atualizar}
           pedidoSair={pedidoSair}
@@ -451,7 +567,8 @@ export function DiarioView({
                         f={it.ficha}
                         ativo={gaveta !== null && "id" in gaveta && gaveta.id === it.id}
                         autor={ehNarrador ? nomeAutor(it.ficha.autorId) : null}
-                        aoAbrir={() => setGaveta({ m: "ficha", id: it.id })}
+                        selecao={selecionando ? { marcado: marcados.includes(chaveDe(it)), bloqueado: !podeApagarItem(it) } : undefined}
+                        aoAbrir={() => (selecionando ? podeApagarItem(it) && alternarMarca(chaveDe(it)) : setGaveta({ m: "ficha", id: it.id }))}
                       />
                     ) : (
                       <CardNota
@@ -460,7 +577,8 @@ export function DiarioView({
                         ativo={gaveta !== null && "id" in gaveta && gaveta.id === it.id}
                         autor={ehNarrador || it.nota.autorId !== meuId ? nomeAutor(it.nota.autorId) : null}
                         dataJogo={calendario && it.nota.diaJogo != null ? rotuloDia(it.nota.diaJogo, calendario.config) : null}
-                        aoAbrir={() => setGaveta({ m: "nota", id: it.id })}
+                        selecao={selecionando ? { marcado: marcados.includes(chaveDe(it)), bloqueado: !podeApagarItem(it) } : undefined}
+                        aoAbrir={() => (selecionando ? podeApagarItem(it) && alternarMarca(chaveDe(it)) : setGaveta({ m: "nota", id: it.id }))}
                       />
                     ),
                   )}
@@ -535,6 +653,12 @@ export function DiarioView({
                 ehNarrador={ehNarrador}
                 membros={membros}
                 somenteLeitura={somenteLeitura}
+                aoPublicar={setPublicando}
+                aoVerNaWiki={(id) => {
+                  setGaveta(null);
+                  setModo("wiki");
+                  setWikiId(id);
+                }}
               />
             )}
             {gaveta.m === "nota" &&
@@ -610,17 +734,66 @@ export function DiarioView({
           </aside>
         </>
       )}
+
+      {publicando && (
+        <PublicarDialogo
+          mesaId={mesaId}
+          meuId={meuId}
+          ficha={publicando}
+          fichas={fichas}
+          notas={notas}
+          mencoes={mencoes}
+          sessoes={sessoes}
+          ehNarrador={ehNarrador}
+          aoFechar={() => setPublicando(null)}
+          aoMudou={(abrirId) => {
+            setPublicando(null);
+            if (abrirId) setGaveta({ m: "ficha", id: abrirId });
+            atualizar();
+          }}
+        />
+      )}
     </>
   );
 }
 
 /* ─── Cards ──────────────────────────────────────────────── */
 
-function CardFicha({ f, ativo, autor, aoAbrir }: { f: FichaDiarioDTO; ativo: boolean; autor: string | null; aoAbrir: () => void }) {
+type SelecaoCard = { marcado: boolean; bloqueado: boolean };
+
+// A caixinha que aparece no canto do card quando se está selecionando.
+function Marca({ s }: { s: SelecaoCard }) {
+  return (
+    <span className={`diario-marca${s.marcado ? " on" : ""}${s.bloqueado ? " off" : ""}`} aria-hidden>
+      {s.marcado && <i className="fas fa-check" />}
+    </span>
+  );
+}
+
+function CardFicha({
+  f,
+  ativo,
+  autor,
+  selecao,
+  aoAbrir,
+}: {
+  f: FichaDiarioDTO;
+  ativo: boolean;
+  autor: string | null;
+  selecao?: SelecaoCard;
+  aoAbrir: () => void;
+}) {
   const tipo = TIPOS_FICHA.find((t) => t.id === f.tipo);
   const resumo = resumoUmaLinha(f.resumo, 90);
   return (
-    <button type="button" className={`diario-card${ativo ? " diario-card--ativo" : ""}`} onClick={aoAbrir}>
+    <button
+      type="button"
+      className={`diario-card${ativo ? " diario-card--ativo" : ""}${selecao?.marcado ? " diario-card--marcado" : ""}`}
+      onClick={aoAbrir}
+      aria-pressed={selecao ? selecao.marcado : undefined}
+      disabled={selecao?.bloqueado}
+    >
+      {selecao && <Marca s={selecao} />}
       <span className="diario-card-topo" style={{ background: tipo?.cor }}>
         {f.retratos[0]?.url || f.retratoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -650,12 +823,14 @@ function CardNota({
   ativo,
   autor,
   dataJogo,
+  selecao,
   aoAbrir,
 }: {
   n: NotaDiarioDTO;
   ativo: boolean;
   autor: string | null;
   dataJogo: string | null;
+  selecao?: SelecaoCard;
   aoAbrir: () => void;
 }) {
   const miniatura = imagensDeRica(n.corpo)[0];
@@ -663,9 +838,12 @@ function CardNota({
   return (
     <button
       type="button"
-      className={`diario-postit${n.importante ? " diario-postit--importante" : ""}${ativo ? " diario-card--ativo" : ""}`}
+      className={`diario-postit${n.importante ? " diario-postit--importante" : ""}${ativo ? " diario-card--ativo" : ""}${selecao?.marcado ? " diario-card--marcado" : ""}`}
       onClick={aoAbrir}
+      aria-pressed={selecao ? selecao.marcado : undefined}
+      disabled={selecao?.bloqueado}
     >
+      {selecao && <Marca s={selecao} />}
       <span className="diario-postit-meta">
         {n.importante && <i className="fas fa-star" />} {hora}
         {n.visibilidade === "publica" && <i className="fas fa-earth-americas diario-card-publica" title="Pública" />}

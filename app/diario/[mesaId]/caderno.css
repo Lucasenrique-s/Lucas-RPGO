@@ -922,3 +922,25 @@ span.cad-salvar {
   min-width: 2ch;
   text-align: center;
 }
+
+/* Folha de uma página que está na wiki: o resumo é o público. */
+.cad-ent-wiki {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  border: 1px dashed var(--tinta, #25272b);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: 8px 0;
+}
+.cad-ent-wiki button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}

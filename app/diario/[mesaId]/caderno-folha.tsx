@@ -28,6 +28,7 @@ export function FolhaEntidade({
   aoAbrirFicha,
   aoIrNota,
   aoAbrirCompleta,
+  aoVerNaWiki,
   aoVoltar,
 }: {
   ficha: FichaDiarioDTO;
@@ -43,6 +44,7 @@ export function FolhaEntidade({
   aoAbrirFicha: (id: string) => void;
   aoIrNota: (id: string) => void;
   aoAbrirCompleta: (id: string) => void;
+  aoVerNaWiki: (id: string) => void;
   aoVoltar: () => void;
 }) {
   const [sel, setSel] = useState(0);
@@ -117,6 +119,17 @@ export function FolhaEntidade({
           {retrato?.legenda && <div className="cad-sub">{retrato.legenda}</div>}
         </div>
       </div>
+
+      {ficha.visibilidade === "publica" && (
+        <div className="cad-ent-wiki">
+          <span>
+            <i className="fas fa-earth-americas" /> Esta página está na wiki da mesa. A biografia abaixo é a dela.
+          </span>
+          <button type="button" onClick={() => aoVerNaWiki(ficha.id)}>
+            ver na wiki
+          </button>
+        </div>
+      )}
 
       {ficha.resumo && <DescricaoRica texto={ficha.resumo} contexto={contexto} />}
 

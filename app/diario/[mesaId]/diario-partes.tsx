@@ -21,6 +21,7 @@ import {
   type TipoFichaDiario,
 } from "@/lib/diario-tipos";
 import { DescricaoRica } from "@/components/descricao-rica/descricao-rica";
+import { NovaRelacao } from "./relacao-editor";
 import { EditorRico } from "@/components/descricao-rica/editor-rico";
 import type { ContextoRico, OpcaoRef } from "@/components/descricao-rica/atomos";
 import {
@@ -32,7 +33,6 @@ import {
   definirEditoresFichaDiario,
   editarNotaDiario,
   mesclarFichaDiario,
-  adicionarRelacaoDiario,
   adicionarRetratoDiario,
   atualizarRetratoDiario,
   nomearSessaoDiario,
@@ -40,6 +40,7 @@ import {
   removerRelacaoDiario,
   removerRetratoDiario,
   publicarNotaDiario,
+  revelarFichaDiario,
 } from "./actions";
 
 export const ENTRE = "entre"; // "Entre sessões" (sessaoId nulo)
@@ -118,9 +119,13 @@ export function NomearSessao({
 
 export function SeloVisibilidade({ visibilidade }: { visibilidade: string }) {
   const publica = visibilidade === "publica";
+  const oculta = visibilidade === "oculta";
   return (
-    <span className={`diario-selo${publica ? " diario-selo--publica" : ""}`} title={publica ? "Visível para toda a mesa" : "Só você e o narrador"}>
-      <i className={`fas ${publica ? "fa-earth-americas" : "fa-lock"}`} /> {publica ? "Pública" : "Privada"}
+    <span
+      className={`diario-selo${publica ? " diario-selo--publica" : ""}`}
+      title={publica ? "Visível para toda a mesa" : oculta ? "Na wiki, mas só o narrador vê, até revelar" : "Só você e o narrador"}
+    >
+      <i className={`fas ${publica ? "fa-earth-americas" : "fa-lock"}`} /> {publica ? "Pública" : oculta ? "Oculta" : "Privada"}
     </span>
   );
 }
@@ -133,6 +138,10 @@ export async function alternarVisibilidadeFicha(
   aoMudou: (abrirId?: string) => void,
 ) {
   try {
+    if (f.visibilidade === "oculta") {
+      exigir(await publicarFichaDiario(mesaId, f.id, "privada"));
+      return aoMudou();
+    }
     if (f.visibilidade === "publica") {
       const r = await Swal.fire({
         icon: "question",
@@ -185,7 +194,7 @@ export async function alternarVisibilidadeNota(mesaId: string, n: NotaDiarioDTO,
   }
 }
 
-function EditoresFicha({
+export function EditoresFicha({
   mesaId,
   ficha,
   membros,
@@ -603,8 +612,6 @@ function GaleriaRetratos({
 
 /* ─── Relações com outras páginas ────────────────────────── */
 
-const VERBOS = ["aliado de", "inimigo de", "membro de", "líder de", "capitão de", "está em", "tem", "pertence a", "irmão de", "mentor de"];
-
 function RelacoesFicha({
   mesaId,
   ficha,
@@ -622,29 +629,11 @@ function RelacoesFicha({
   aoAbrirFicha: (id: string) => void;
   aoAtualizar: () => void;
 }) {
-  const [verbo, setVerbo] = useState("");
-  const [alvo, setAlvo] = useState("");
-  const [salvando, setSalvando] = useState(false);
   const de = relacoes.filter((r) => r.deId === ficha.id);
   const para = relacoes.filter((r) => r.paraId === ficha.id);
   const nome = (id: string) => fichas.find((f) => f.id === id);
   const membros = para.filter((r) => /membro/i.test(r.verbo)).map((r) => nome(r.deId)).filter((f): f is FichaDiarioDTO => !!f);
   const classe = (f: FichaDiarioDTO) => `desc-mencao desc-mencao--${f.tipo}`;
-
-  async function adicionar() {
-    if (!verbo.trim() || !alvo) return;
-    setSalvando(true);
-    try {
-      exigir(await adicionarRelacaoDiario(mesaId, ficha.id, verbo, alvo));
-      setVerbo("");
-      setAlvo("");
-      aoAtualizar();
-    } catch (e) {
-      avisar(e instanceof Error ? e.message : "Falha ao salvar.");
-    } finally {
-      setSalvando(false);
-    }
-  }
 
   async function tirar(id: string) {
     try {
@@ -707,29 +696,7 @@ function RelacoesFicha({
             ) : null;
           })}
       </div>
-      {podeEditar && (
-        <div className="diario-relacao-nova">
-          <input list="diario-verbos" type="text" value={verbo} onChange={(e) => setVerbo(e.target.value)} placeholder="aliado de, membro de…" aria-label="Relação" maxLength={40} />
-          <datalist id="diario-verbos">
-            {VERBOS.map((v) => (
-              <option key={v} value={v} />
-            ))}
-          </datalist>
-          <select value={alvo} onChange={(e) => setAlvo(e.target.value)} aria-label="Com quem">
-            <option value="">com…</option>
-            {fichas
-              .filter((f) => f.id !== ficha.id)
-              .map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.nome}
-                </option>
-              ))}
-          </select>
-          <button type="button" className="diario-btn" onClick={() => void adicionar()} disabled={salvando || !verbo.trim() || !alvo}>
-            Adicionar
-          </button>
-        </div>
-      )}
+      {podeEditar && <NovaRelacao mesaId={mesaId} ficha={ficha} fichas={fichas} aoErro={avisar} aoAdicionou={aoAtualizar} />}
     </>
   );
 }
@@ -754,6 +721,8 @@ export function FichaDetalhe({
   ehNarrador,
   membros,
   somenteLeitura = false,
+  aoPublicar,
+  aoVerNaWiki,
 }: {
   mesaId: string;
   meuId: string;
@@ -777,6 +746,9 @@ export function FichaDetalhe({
   membros: { id: string; nome: string }[];
   // Sem editar, apagar nem publicar (narrador vendo o diário de um jogador).
   somenteLeitura?: boolean;
+  // Abre o diálogo de publicar na wiki (escolher as anotações que vão junto).
+  aoPublicar: (f: FichaDiarioDTO) => void;
+  aoVerNaWiki: (id: string) => void;
 }) {
   // Linha do tempo: as anotações que mencionam a ficha, agrupadas por sessão.
   const grupos = useMemo(() => {
@@ -911,19 +883,44 @@ export function FichaDetalhe({
 
       {souAutor && !somenteLeitura && (
         <div className="diario-visibilidade">
+          {ficha.visibilidade === "oculta" && ehNarrador && (
+            <button
+              type="button"
+              className="diario-btn diario-btn--primario"
+              onClick={async () => {
+                try {
+                  exigir(await revelarFichaDiario(mesaId, ficha.id));
+                  aoAtualizar();
+                } catch (e) {
+                  avisar(e instanceof Error ? e.message : "Falha ao revelar.");
+                }
+              }}
+            >
+              <i className="fas fa-earth-americas" /> Revelar à mesa
+            </button>
+          )}
           <button
             type="button"
             className="diario-btn"
-            onClick={() => void alternarVisibilidadeFicha(mesaId, ficha, (id) => (id ? aoAbrirFicha(id) : aoAtualizar()))}
+            onClick={() =>
+              publica || ficha.visibilidade === "oculta"
+                ? void alternarVisibilidadeFicha(mesaId, ficha, (id) => (id ? aoAbrirFicha(id) : aoAtualizar()))
+                : aoPublicar(ficha)
+            }
           >
-            <i className={`fas ${publica ? "fa-lock" : "fa-earth-americas"}`} />{" "}
-            {publica ? "Tornar privada" : ehNarrador ? "Revelar para a mesa" : "Publicar para a mesa"}
+            <i className={`fas ${publica || ficha.visibilidade === "oculta" ? "fa-lock" : "fa-earth-americas"}`} />{" "}
+            {publica || ficha.visibilidade === "oculta" ? "Tornar privada" : "Publicar para a mesa"}
           </button>
+          {publica && (
+            <button type="button" className="diario-btn" onClick={() => aoVerNaWiki(ficha.id)}>
+              <i className="fas fa-book-open" /> Ver na wiki
+            </button>
+          )}
           {publica && <EditoresFicha key={ficha.editores.join(",")} mesaId={mesaId} ficha={ficha} membros={membros} aoSalvar={aoAtualizar} />}
         </div>
       )}
 
-      {ficha.resumo ? <DescricaoRica texto={ficha.resumo} contexto={contexto} /> : <p className="diario-aviso">Sem resumo ainda.</p>}
+      {ficha.resumo ? <DescricaoRica texto={ficha.resumo} contexto={contexto} /> : <p className="diario-aviso">Sem biografia ainda.</p>}
 
       <RelacoesFicha
         mesaId={mesaId}
@@ -1110,7 +1107,7 @@ export function FichaForm({
       </div>
       <p className="diario-aviso">Os retratos (vários, com legenda) ficam na página da pessoa ou do lugar.</p>
       <label>
-        Resumo — o que se sabe
+        Biografia: o que se sabe
         <EditorComImagem
           mesaId={mesaId}
           meuId={meuId}
@@ -1119,7 +1116,7 @@ export function FichaForm({
           refs={refsSemEla}
           cfg={cfg}
           contexto={contexto}
-          placeholder="O que você sabe sobre isso? (@ menciona, cole imagens)"
+          placeholder="Escreva como preferir: quem é, o que já aconteceu, tudo o que se sabe. (@ menciona, cole imagens)"
         />
       </label>
       <div className="diario-form-acoes">

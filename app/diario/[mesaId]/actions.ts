@@ -15,6 +15,7 @@ import {
   ehTipoFicha,
   type CamposFicha,
   type TipoFichaDiario,
+  type VersaoFichaDTO,
 } from "@/lib/diario-tipos";
 
 const executar = <T extends object = object>(corpo: () => Promise<T | void>) => executarEm("diario", corpo);
@@ -113,6 +114,8 @@ export async function editarFichaDiario(mesaId: string, id: string, dados: Dados
     const d = lerFicha(dados);
     await prisma.$transaction(async (tx) => {
       const resumo = await resolverNovos(tx, mesaId, acesso.userId, d.resumo);
+      // Página pública: guarda o estado de antes, pra poder desfazer.
+      if (atual.visibilidade === "publica") await guardarVersao(tx, atual, acesso.userId);
       await tx.diarioFicha.update({ where: { id }, data: { ...d, resumo } });
       await recalcularMencoes(tx, mesaId, "ficha", id, resumo);
     });
@@ -125,6 +128,10 @@ export async function apagarFichaDiario(mesaId: string, id: string) {
     const acesso = await autorizar(mesaId);
     const atual = await prisma.diarioFicha.findFirst({ where: { id, mesaId } });
     if (!atual || !podeApagarDiario(acesso, atual)) throw new ErroDeUso("Ficha não encontrada.");
+    if (atual.personagemId) {
+      const vivo = await prisma.personagem.findFirst({ where: { id: atual.personagemId }, select: { id: true } });
+      if (vivo) throw new ErroDeUso("Esta página acompanha o personagem e não pode ser apagada. Se não quiser que a mesa a veja, deixe-a privada.");
+    }
     // Os @ que citavam a página ficam nos textos e passam a aparecer tracejados.
     await prisma.$transaction([
       prisma.diarioFicha.delete({ where: { id } }),
@@ -229,6 +236,49 @@ export async function apagarNotaDiario(mesaId: string, id: string) {
   });
 }
 
+// Apaga várias fichas e anotações de uma vez. Vale a regra de cada uma (o autor, ou o narrador
+// no que é público); o que não puder ser apagado fica e é contado em `ignoradas`. A página que
+// acompanha um personagem existente também fica.
+export async function apagarVariosDiario(mesaId: string, fichaIds: string[], notaIds: string[]) {
+  return executar(async (): Promise<{ apagadas: number; ignoradas: number }> => {
+    const acesso = await autorizar(mesaId);
+    const fIds = lista(fichaIds, 500, 80, "Fichas");
+    const nIds = lista(notaIds, 500, 80, "Anotações");
+    const [fichas, notas] = await Promise.all([
+      prisma.diarioFicha.findMany({ where: { mesaId, id: { in: fIds } } }),
+      prisma.diarioNota.findMany({ where: { mesaId, id: { in: nIds } } }),
+    ]);
+    const vivos = new Set(
+      (
+        await prisma.personagem.findMany({
+          where: { id: { in: fichas.flatMap((f) => (f.personagemId ? [f.personagemId] : [])) } },
+          select: { id: true },
+        })
+      ).map((p) => p.id),
+    );
+    const okF = fichas.filter((f) => podeApagarDiario(acesso, f) && !(f.personagemId && vivos.has(f.personagemId))).map((f) => f.id);
+    const okN = notas.filter((n) => podeApagarDiario(acesso, n)).map((n) => n.id);
+    await prisma.$transaction([
+      prisma.diarioFicha.deleteMany({ where: { id: { in: okF } } }),
+      prisma.diarioRelacao.deleteMany({ where: { OR: [{ deId: { in: okF } }, { paraId: { in: okF } }] } }),
+      prisma.diarioNota.deleteMany({ where: { id: { in: okN } } }),
+      prisma.diarioMencao.deleteMany({
+        where: {
+          OR: [
+            { origemTipo: "ficha", origemId: { in: okF } },
+            { alvoTipo: "ficha", alvoId: { in: okF } },
+            { origemTipo: "nota", origemId: { in: okN } },
+            { alvoTipo: "nota", alvoId: { in: okN } },
+          ],
+        },
+      }),
+    ]);
+    revalidar(mesaId);
+    const pedidas = fIds.length + nIds.length;
+    return { apagadas: okF.length + okN.length, ignoradas: pedidas - okF.length - okN.length };
+  });
+}
+
 // ─── Sessão ────────────────────────────────────────────────────
 
 // Número e título da sessão ("Sessão 12: A fuga de Enies Lobby"): só o narrador.
@@ -251,42 +301,156 @@ export async function nomearSessaoDiario(mesaId: string, sessaoId: string, numer
 // ─── Visibilidade ──────────────────────────────────────────────
 
 export type Visibilidade = "privada" | "publica";
+// Na wiki o narrador ainda tem a página "oculta": só ele a vê, até revelar.
+export type VisibilidadeFicha = Visibilidade | "oculta";
+
+// Em que sessão a página entrou na wiki: a ativa, ou a última.
+async function sessaoParaRevelar(tx: Prisma.TransactionClient, mesaId: string): Promise<string | null> {
+  const s = await tx.sessao.findFirst({ where: { mesaId }, orderBy: [{ encerradaEm: { sort: "asc", nulls: "first" } }, { iniciadaEm: "desc" }], select: { id: true } });
+  return s?.id ?? null;
+}
+
+// Marca quais anotações DO AUTOR aparecem na página pública. Só vale pra anotação dele.
+async function gravarNotasWiki(tx: Prisma.TransactionClient, mesaId: string, autorId: string, fichaId: string, notaIds: string[]) {
+  const minhas = await tx.diarioNota.findMany({ where: { mesaId, autorId, id: { in: notaIds } }, select: { id: true } });
+  await tx.diarioWikiNota.deleteMany({ where: { fichaId, nota: { autorId } } });
+  if (minhas.length) await tx.diarioWikiNota.createMany({ data: minhas.map((n) => ({ fichaId, notaId: n.id })), skipDuplicates: true });
+}
+
+const MAX_VERSOES = 30;
+
+// Guarda o estado atual da página antes de uma edição; mantém só as últimas versões.
+async function guardarVersao(
+  tx: Prisma.TransactionClient,
+  f: { id: string; nome: string; apelidos: string[]; campos: Prisma.JsonValue; resumo: string },
+  editorId: string,
+) {
+  await tx.diarioFichaVersao.create({
+    data: { fichaId: f.id, editorId, nome: f.nome, apelidos: f.apelidos, campos: (f.campos ?? {}) as Prisma.InputJsonValue, resumo: f.resumo },
+  });
+  const velhas = await tx.diarioFichaVersao.findMany({
+    where: { fichaId: f.id },
+    orderBy: { criadaEm: "desc" },
+    skip: MAX_VERSOES,
+    select: { id: true },
+  });
+  if (velhas.length) await tx.diarioFichaVersao.deleteMany({ where: { id: { in: velhas.map((v) => v.id) } } });
+}
 
 // Torna uma ficha pública (ou privada de novo). Só o autor. Publicar uma ficha
 // com o mesmo nome de uma pública já existente devolve o conflito: o cliente
 // pergunta e chama `mesclarFichaDiario` ou repete com `ignorarConflito`.
+//
+// `notaIds`: as anotações do autor que aparecem em "Anotações da mesa" (o "o que eu sei"
+// nunca vai sozinho: só vai o que ele marcar). Duas pessoas publicando o mesmo nome ao
+// mesmo tempo: a trava abaixo serializa, e a segunda cai no conflito (fluxo de mesclar).
 export async function publicarFichaDiario(
   mesaId: string,
   id: string,
-  visibilidade: Visibilidade,
+  visibilidade: VisibilidadeFicha,
   ignorarConflito = false,
+  notaIds: string[] = [],
 ) {
   return executar(async (): Promise<{ conflito?: { id: string; nome: string } }> => {
     const acesso = await autorizar(mesaId);
-    const f = await prisma.diarioFicha.findFirst({ where: { id, mesaId } });
-    if (!f || f.autorId !== acesso.userId) throw new ErroDeUso("Só o autor muda a visibilidade da ficha.");
-    if (visibilidade !== "privada" && visibilidade !== "publica") throw new ErroDeUso("Visibilidade inválida.");
-    if (visibilidade === "publica" && f.visibilidade !== "publica" && !ignorarConflito) {
-      const igual = await prisma.diarioFicha.findFirst({
-        where: { mesaId, visibilidade: "publica", nome: { equals: f.nome, mode: "insensitive" }, id: { not: id } },
-        select: { id: true, nome: true },
+    if (visibilidade !== "privada" && visibilidade !== "publica" && visibilidade !== "oculta") throw new ErroDeUso("Visibilidade inválida.");
+    if (visibilidade === "oculta" && !acesso.narrador) throw new ErroDeUso("Só o narrador guarda páginas ocultas na wiki.");
+    const ids = lista(notaIds, 200, 80, "Anotações");
+    const r = await prisma.$transaction(async (tx) => {
+      const f = await tx.diarioFicha.findFirst({ where: { id, mesaId } });
+      if (!f || f.autorId !== acesso.userId) throw new ErroDeUso("Só o autor muda a visibilidade da ficha.");
+      if (visibilidade === "publica" && f.visibilidade !== "publica") {
+        // Trava por mesa+nome até o fim da transação: a segunda publicação já enxerga a primeira.
+        await tx.$executeRaw`select pg_advisory_xact_lock(hashtext(${mesaId + ":" + f.nome.toLowerCase()}))`;
+        if (!ignorarConflito) {
+          const igual = await tx.diarioFicha.findFirst({
+            where: { mesaId, visibilidade: "publica", nome: { equals: f.nome, mode: "insensitive" }, id: { not: id } },
+            select: { id: true, nome: true },
+          });
+          if (igual) return { conflito: igual };
+        }
+      }
+      const entrando = visibilidade === "publica" && f.visibilidade !== "publica";
+      await tx.diarioFicha.update({
+        where: { id },
+        data: {
+          visibilidade,
+          // Voltar a privada tira os editores extras: ninguém mais edita o que é só do autor.
+          ...(visibilidade !== "publica" ? { editores: [], reveladaSessaoId: null, reveladaEm: null } : {}),
+          ...(entrando ? { reveladaSessaoId: await sessaoParaRevelar(tx, mesaId), reveladaEm: new Date() } : {}),
+        },
       });
-      if (igual) return { conflito: igual };
-    }
-    await prisma.diarioFicha.update({
-      where: { id },
-      // Voltar a privada tira os editores extras: ninguém mais edita o que é só do autor.
-      data: { visibilidade, ...(visibilidade === "privada" ? { editores: [] } : {}) },
+      if (visibilidade === "publica") await gravarNotasWiki(tx, mesaId, acesso.userId, id, ids);
+      else await tx.diarioWikiNota.deleteMany({ where: { fichaId: id } });
+      return {};
     });
     revalidar(mesaId);
-    return {};
+    return r;
+  });
+}
+
+// O narrador revela uma página oculta à mesa (ela passa a ser pública, "revelada na Sessão N").
+export async function revelarFichaDiario(mesaId: string, id: string) {
+  return executar(async () => {
+    const acesso = await autorizar(mesaId);
+    if (!acesso.narrador) throw new ErroDeUso("Só o narrador revela páginas.");
+    await prisma.$transaction(async (tx) => {
+      const f = await tx.diarioFicha.findFirst({ where: { id, mesaId } });
+      if (!f || f.visibilidade !== "oculta") throw new ErroDeUso("Página oculta não encontrada.");
+      await tx.$executeRaw`select pg_advisory_xact_lock(hashtext(${mesaId + ":" + f.nome.toLowerCase()}))`;
+      await tx.diarioFicha.update({
+        where: { id },
+        data: { visibilidade: "publica", reveladaSessaoId: await sessaoParaRevelar(tx, mesaId), reveladaEm: new Date() },
+      });
+    });
+    revalidar(mesaId);
+  });
+}
+
+// Escolhe quais anotações MINHAS aparecem na página pública (qualquer participante, na própria parte).
+export async function definirNotasWikiDiario(mesaId: string, fichaId: string, notaIds: string[]) {
+  return executar(async () => {
+    const acesso = await autorizar(mesaId);
+    const ficha = await prisma.diarioFicha.findFirst({ where: { id: fichaId, mesaId, visibilidade: "publica" }, select: { id: true } });
+    if (!ficha) throw new ErroDeUso("Página pública não encontrada.");
+    const ids = lista(notaIds, 200, 80, "Anotações");
+    await prisma.$transaction((tx) => gravarNotasWiki(tx, mesaId, acesso.userId, fichaId, ids));
+    revalidar(mesaId);
+  });
+}
+
+// Versões antigas de uma página que a pessoa pode ler (as mais novas primeiro).
+export async function listarVersoesFichaDiario(mesaId: string, fichaId: string) {
+  return executar(async (): Promise<{ versoes: VersaoFichaDTO[] }> => {
+    const acesso = await autorizar(mesaId);
+    const f = await prisma.diarioFicha.findFirst({ where: { id: fichaId, mesaId } });
+    if (!f || !podeLerDiario(acesso, f)) throw new ErroDeUso("Página não encontrada.");
+    const v = await prisma.diarioFichaVersao.findMany({ where: { fichaId }, orderBy: { criadaEm: "desc" }, take: MAX_VERSOES });
+    return { versoes: v.map((x) => ({ id: x.id, editorId: x.editorId, nome: x.nome, resumo: x.resumo, criadaEm: x.criadaEm.toISOString() })) };
+  });
+}
+
+// Desfazer: volta a página àquela versão. O estado de agora também vira uma versão (dá pra refazer).
+export async function restaurarVersaoFichaDiario(mesaId: string, versaoId: string) {
+  return executar(async () => {
+    const acesso = await autorizar(mesaId);
+    const v = await prisma.diarioFichaVersao.findUnique({ where: { id: versaoId } });
+    if (!v) throw new ErroDeUso("Versão não encontrada.");
+    await prisma.$transaction(async (tx) => {
+      const f = await tx.diarioFicha.findFirst({ where: { id: v.fichaId, mesaId } });
+      if (!f || !podeEscreverDiario(acesso, f)) throw new ErroDeUso("Página não encontrada.");
+      await guardarVersao(tx, f, acesso.userId);
+      await tx.diarioFicha.update({ where: { id: f.id }, data: { nome: v.nome, apelidos: v.apelidos, campos: (v.campos ?? {}) as Prisma.InputJsonValue, resumo: v.resumo } });
+      await recalcularMencoes(tx, mesaId, "ficha", f.id, v.resumo);
+    });
+    revalidar(mesaId);
   });
 }
 
 // Mescla a ficha do autor numa ficha pública que já existe, sem mexer no texto
 // de ninguém: as menções dele passam a apontar pra pública, o resumo dele vira
 // uma anotação privada sobre ela, e a ficha duplicada some.
-export async function mesclarFichaDiario(mesaId: string, id: string, destinoId: string) {
+export async function mesclarFichaDiario(mesaId: string, id: string, destinoId: string, notaIds: string[] = []) {
   return executar(async () => {
     const acesso = await autorizar(mesaId);
     const [f, alvo] = await Promise.all([
@@ -329,6 +493,9 @@ ${f.resumo}`.slice(0, L.texto);
         where: { OR: [{ origemTipo: "ficha", origemId: f.id }, { alvoTipo: "ficha", alvoId: f.id }] },
       });
       await tx.diarioFicha.delete({ where: { id: f.id } });
+      // As anotações que ele marcou passam a aparecer na página pública.
+      const marcadas = lista(notaIds, 200, 80, "Anotações");
+      if (marcadas.length) await gravarNotasWiki(tx, mesaId, acesso.userId, alvo.id, marcadas);
     });
     revalidar(mesaId);
     return { destinoId: alvo.id };

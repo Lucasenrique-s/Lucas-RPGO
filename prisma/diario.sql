@@ -85,3 +85,35 @@ create table if not exists public.diario_marcos (
   criado_em timestamp(3) not null default current_timestamp
 );
 create index if not exists diario_marcos_mesa_id_autor_id_idx on public.diario_marcos (mesa_id, autor_id);
+
+
+-- Etapa 3: wiki da mesa. Só adiciona.
+-- Página revelada pelo narrador: em que sessão e quando.
+alter table public.diario_fichas add column if not exists revelada_sessao_id text;
+alter table public.diario_fichas add column if not exists revelada_em timestamp(3);
+
+-- "Anotações da mesa": quais anotações do autor aparecem na página pública.
+create table if not exists public.diario_wiki_notas (
+  ficha_id text not null references public.diario_fichas(id) on delete cascade,
+  nota_id  text not null references public.diario_notas(id) on delete cascade,
+  primary key (ficha_id, nota_id)
+);
+create index if not exists diario_wiki_notas_nota_id_idx on public.diario_wiki_notas (nota_id);
+
+-- Histórico de edições das páginas públicas (cada linha é o estado ANTES de uma edição).
+create table if not exists public.diario_ficha_versoes (
+  id        text primary key,
+  ficha_id  text not null references public.diario_fichas(id) on delete cascade,
+  editor_id text not null,
+  nome      text not null,
+  apelidos  text[] not null default '{}',
+  campos    jsonb not null default '{}',
+  resumo    text not null default '',
+  criada_em timestamp(3) not null default current_timestamp
+);
+create index if not exists diario_ficha_versoes_ficha_id_criada_em_idx on public.diario_ficha_versoes (ficha_id, criada_em);
+
+
+-- A página de cada personagem de jogador nasce sozinha na wiki; este campo liga uma à outra.
+alter table public.diario_fichas add column if not exists personagem_id text;
+create unique index if not exists diario_fichas_personagem_id_key on public.diario_fichas (personagem_id);

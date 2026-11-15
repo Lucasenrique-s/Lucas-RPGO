@@ -57,9 +57,26 @@ export type FichaDiarioDTO = {
   resumo: string;
   visibilidade: string;
   editores: string[];
+  // Wiki: sessão em que a página foi publicada/revelada (null = ainda não, ou sem sessão).
+  reveladaSessaoId: string | null;
+  reveladaEm: string | null;
   criadaEm: string;
   atualizadaEm: string;
 };
+
+// Anotação que o autor escolheu mostrar na página pública ("Anotações da mesa").
+export type NotaWikiDTO = {
+  fichaId: string;
+  notaId: string;
+  autorId: string;
+  sessaoId: string | null;
+  titulo: string | null;
+  corpo: string;
+  criadaEm: string;
+};
+
+// Uma versão antiga de uma página pública (o estado de antes de uma edição).
+export type VersaoFichaDTO = { id: string; editorId: string; nome: string; resumo: string; criadaEm: string };
 
 export type NotaDiarioDTO = {
   id: string;

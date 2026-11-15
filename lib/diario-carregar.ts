@@ -2,7 +2,7 @@
 // Usado pela página /diario/[mesaId] e pela aba Diário da ficha.
 
 import { prisma } from "@/lib/prisma";
-import { acessoAoDiario, filtroLeituraDiario } from "@/lib/diario";
+import { acessoAoDiario, filtroLeituraDiario, sincronizarPaginasDePersonagens } from "@/lib/diario";
 import { carregarCalendario } from "@/lib/calendario/carregar";
 import type {
   CalendarioDiarioDTO,
@@ -11,6 +11,7 @@ import type {
   MarcoDiarioDTO,
   MencaoDiarioDTO,
   NotaDiarioDTO,
+  NotaWikiDTO,
   RelacaoDTO,
   SessaoDiarioDTO,
   TipoFichaDiario,
@@ -23,6 +24,8 @@ export type DadosDiario = {
   ehNarrador: boolean;
   fichas: FichaDiarioDTO[];
   notas: NotaDiarioDTO[];
+  // Anotações marcadas pelos autores pra aparecer nas páginas públicas.
+  notasWiki: NotaWikiDTO[];
   sessoes: SessaoDiarioDTO[];
   mencoes: MencaoDiarioDTO[];
   relacoes: RelacaoDTO[];
@@ -54,6 +57,9 @@ export async function carregarDiario(
     somenteLeitura = true;
   }
 
+  // Os personagens dos jogadores ganham página na wiki sozinhos. Falha aqui não derruba o diário.
+  await sincronizarPaginasDePersonagens(mesaId).catch(() => {});
+
   // O filtro de leitura vai na própria consulta: nota alheia nem sai do banco.
   const filtro = filtroLeituraDiario(acesso);
   const [mesa, fichas, notas, sessoes, membros, cal] = await Promise.all([
@@ -74,9 +80,11 @@ export async function carregarDiario(
   const mencoes = await prisma.diarioMencao.findMany({ where: { origemId: { in: origens } } });
   // Relações só entre páginas que esta pessoa lê; marcos são do próprio jogador (o narrador lê todos).
   const idsFichas = fichas.map((f) => f.id);
-  const [relacoes, marcos] = await Promise.all([
+  const [relacoes, marcos, wikiNotas] = await Promise.all([
     prisma.diarioRelacao.findMany({ where: { mesaId, deId: { in: idsFichas }, paraId: { in: idsFichas } }, orderBy: { criadaEm: "asc" } }),
     prisma.diarioMarco.findMany({ where: { mesaId, ...(acesso.narrador ? {} : { autorId: acesso.userId }) }, orderBy: { nome: "asc" } }),
+    // Só das páginas que esta pessoa lê; o texto vem junto porque a anotação pode ser de outro autor.
+    prisma.diarioWikiNota.findMany({ where: { fichaId: { in: idsFichas } }, include: { nota: true } }),
   ]);
 
   // Quem escreveu: nome do personagem do jogador; o narrador aparece como tal.
@@ -100,6 +108,8 @@ export async function carregarDiario(
       resumo: f.resumo,
       visibilidade: f.visibilidade,
       editores: f.editores,
+      reveladaSessaoId: f.reveladaSessaoId,
+      reveladaEm: f.reveladaEm?.toISOString() ?? null,
       criadaEm: f.criadaEm.toISOString(),
       atualizadaEm: f.atualizadaEm.toISOString(),
     })),
@@ -115,6 +125,17 @@ export async function carregarDiario(
       visibilidade: n.visibilidade,
       criadaEm: n.criadaEm.toISOString(),
     })),
+    notasWiki: wikiNotas
+      .filter((w) => w.nota.mesaId === mesaId)
+      .map((w) => ({
+        fichaId: w.fichaId,
+        notaId: w.notaId,
+        autorId: w.nota.autorId,
+        sessaoId: w.nota.sessaoId,
+        titulo: w.nota.titulo,
+        corpo: w.nota.corpo,
+        criadaEm: w.nota.criadaEm.toISOString(),
+      })),
     sessoes: sessoes.map((s) => ({
       id: s.id,
       numero: s.numero,

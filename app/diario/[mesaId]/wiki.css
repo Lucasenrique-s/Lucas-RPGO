@@ -1,0 +1,687 @@
+/* Wiki da mesa: segue o tema do app (claro/escuro), sem o clima de caderno. */
+.wk {
+  margin-top: 8px;
+}
+.wk-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.wk-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-sec);
+}
+.wk-sub {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-sec);
+}
+.wk-ver-como {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-sec);
+}
+.wk-ver-como button,
+.wk-abas button {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.wk-ver-como button.on,
+.wk-abas button[aria-pressed="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary, #fff);
+}
+.wk-busca-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.wk-busca {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 220px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 14px;
+}
+.wk-busca input {
+  flex: 1;
+  height: 36px;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--text-main);
+  font: inherit;
+}
+.wk-abas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wk-cartoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+.wk-cartao {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+.wk-cartao:hover {
+  border-color: var(--primary);
+}
+.wk-cartao--oculto {
+  border-style: dashed;
+}
+.wk-cartao--novo {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 200px;
+  color: var(--text-sec);
+  border-style: dashed;
+}
+.wk-cartao-foto {
+  position: relative;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 2.4rem;
+  overflow: hidden;
+}
+.wk-cartao-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.wk-cadeado {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.7rem;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.wk-cartao-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 12px;
+}
+.wk-cartao-nome {
+  font-weight: 600;
+  font-size: 1rem;
+}
+.wk-cartao-tipo,
+.wk-cartao-rodape {
+  font-size: 0.75rem;
+  color: var(--text-sec);
+}
+.wk-cartao-resumo {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.wk-vazio {
+  color: var(--text-sec);
+  font-size: 0.9rem;
+}
+
+/* Página */
+.wk-migalha {
+  font-size: 0.85rem;
+  color: var(--text-sec);
+  margin-bottom: 10px;
+}
+.wk-migalha button {
+  background: transparent;
+  border: 0;
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+.wk-oculta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: rgba(241, 196, 15, 0.14);
+  border: 1px solid var(--warning, #f1c40f);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+.wk-oculta button {
+  margin-left: auto;
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.wk-grade {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .wk-grade {
+    grid-template-columns: 1fr;
+  }
+}
+.wk-retrato {
+  height: 230px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 4rem;
+  overflow: hidden;
+}
+.wk-retrato img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.wk-leg {
+  font-size: 0.78rem;
+  color: var(--text-sec);
+  margin: 6px 2px 10px;
+}
+.wk-galeria {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.wk-galeria button {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg-card);
+}
+.wk-galeria button img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.wk-galeria button.on {
+  border-color: var(--primary);
+}
+.wk-card {
+  margin-top: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+}
+.wk-card p {
+  margin: 4px 0 8px;
+  color: var(--text-sec);
+}
+.wk-card--caderno {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg-card));
+}
+.wk-card--caderno button {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+.wk-card--caderno button:hover {
+  filter: brightness(1.1);
+}
+.wk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.wk-chip {
+  background: var(--bg-main, transparent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.8rem;
+}
+.wk-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.wk-cab h2 {
+  margin: 0 0 2px;
+}
+.wk-meta {
+  font-size: 0.85rem;
+  color: var(--text-sec);
+}
+.wk-acoes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.wk-sec {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 18px 0 6px;
+  font-size: 1rem;
+}
+.wk-sec-btn {
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+.wk-rels {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+.wk-link {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  padding: 0 2px;
+}
+.wk-sessao {
+  margin-bottom: 12px;
+}
+.wk-sessao-rot {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-sec);
+  margin-bottom: 4px;
+}
+.wk-nota {
+  border-left: 3px solid var(--border);
+  padding: 4px 0 4px 10px;
+  margin-bottom: 8px;
+}
+.wk-nota-autor {
+  font-size: 0.75rem;
+  color: var(--text-sec);
+}
+.wk-escolher {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.wk-escolher-acoes,
+.wk-modal-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.wk-notas-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.wk-aviso-priv {
+  color: var(--warning, #c98a00);
+}
+.wk-historico {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+}
+.wk-historico ul {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.wk-hist-linha {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wk-hist-linha > span {
+  flex: 1;
+  min-width: 160px;
+}
+.wk-hist-texto {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--border);
+  color: var(--text-sec);
+  white-space: pre-wrap;
+}
+
+/* Diálogo de publicar */
+.wk-modal-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.wk-modal {
+  width: min(520px, 100%);
+  max-height: 86vh;
+  overflow-y: auto;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.wk-modal h3 {
+  margin: 0 0 8px;
+}
+.wk-modal-p {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+.wk-modal-lista {
+  max-height: 34vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+/* ─── Página no estilo do protótipo ─────────────────────── */
+.wk-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.wk-titulo h2 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+.wk-acoes button {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.wk-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 14px;
+}
+.wk-tags span {
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.78rem;
+}
+.wk-tags .wk-tag-neutra {
+  background: rgba(128, 128, 128, 0.2);
+  color: var(--text-main);
+}
+h4.wk-sec {
+  margin: 18px 0 6px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-sec);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+h4.wk-sec--linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.wk-sec-btn {
+  background: transparent;
+  border: 0;
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.wk-minis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wk-minis button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 12px 3px 4px;
+  cursor: pointer;
+  font: inherit;
+}
+.wk-mini-foto {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.75rem;
+  overflow: hidden;
+}
+.wk-mini-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.wk-relacoes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wk-relacao {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.wk-relacao > span {
+  color: var(--text-sec);
+  min-width: 110px;
+}
+.wk-nota {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  border-left: 0;
+  margin: 0;
+}
+.wk-nota-sessao {
+  color: var(--text-sec);
+  font-size: 0.8rem;
+  min-width: 70px;
+}
+.wk-nota-corpo {
+  flex: 1;
+  min-width: 0;
+}
+.wk-nota-corpo small {
+  display: block;
+  color: var(--text-sec);
+  font-size: 0.72rem;
+}
+.wk-editores {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.wk-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+.wk-retrato {
+  height: 260px;
+}
+.wk-legenda {
+  width: 100%;
+  margin: 6px 0 2px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--border);
+  color: var(--text-sec);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 2px;
+}
+.wk-galeria-mais {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  border: 1.5px dashed var(--border);
+  color: var(--text-sec);
+  font-size: 1.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.wk-galeria-mais:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.wk-retrato-acoes {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+}
+.wk-retrato-acoes button {
+  background: transparent;
+  border: 0;
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0;
+}
+
+.wk-relacao-entrada {
+  color: var(--text-sec);
+}
+.wk-relacao-x {
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  color: var(--text-sec);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.wk-relacao-x:hover {
+  color: var(--danger, #e74c3c);
+}
+
+.wk-bio-editor {
+  display: grid;
+  gap: 8px;
+}
+.wk-bio-dica {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-sec);
+  line-height: 1.45;
+}
+
+.wk-card .diario-editores {
+  margin-top: 8px;
+}
+.wk-card .diario-editores-painel {
+  width: 100%;
+}
+.wk-card .diario-form-acoes {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}

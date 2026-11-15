@@ -270,6 +270,7 @@ export function Caderno({
   aoAbrirFicha,
   aoFecharFolha,
   aoAbrirCompleta,
+  aoVerNaWiki,
   aoAbrirNota,
   aoSalvou,
   aoSair,
@@ -296,6 +297,8 @@ export function Caderno({
   aoAbrirFicha: (id: string) => void;
   aoFecharFolha: () => void;
   aoAbrirCompleta: (id: string) => void;
+  // A página é pública: abre a mesma página na wiki.
+  aoVerNaWiki: (id: string) => void;
   aoAbrirNota: (id: string) => void;
   aoSalvou: () => void;
   aoSair: () => void;
@@ -877,6 +880,7 @@ export function Caderno({
                     aoAbrirFicha={abrirFolha}
                     aoIrNota={(id) => paginaNota[id] !== undefined && irParaColuna(paginaNota[id])}
                     aoAbrirCompleta={aoAbrirCompleta}
+                    aoVerNaWiki={aoVerNaWiki}
                     aoVoltar={aoFecharFolha}
                   />
                 </div>

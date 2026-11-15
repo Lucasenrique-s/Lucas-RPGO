@@ -16,3 +16,6 @@ alter table public.diario_mencoes enable row level security;
 alter table public.diario_retratos  enable row level security;
 alter table public.diario_relacoes  enable row level security;
 alter table public.diario_marcos    enable row level security;
+
+alter table public.diario_wiki_notas    enable row level security;
+alter table public.diario_ficha_versoes enable row level security;
