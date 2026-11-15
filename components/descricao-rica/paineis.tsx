@@ -25,7 +25,7 @@ import {
 import { dataParaDias, diasParaData, type CalendarioConfig } from "@/lib/calendario/engine";
 import { rotuloDia } from "@/lib/diario-tipos";
 
-type Categoria = "tudo" | "daacao" | "acao" | "hab" | "item" | "ficha" | "nota" | "sessao" | "dia" | "evento" | "cond" | "efeito" | "dano" | "attr";
+type Categoria = "tudo" | "daacao" | "acao" | "hab" | "item" | "ficha" | "nota" | "sessao" | "dia" | "evento" | "marco" | "cond" | "efeito" | "dano" | "attr";
 const CATEGORIAS: { id: Categoria; nome: string }[] = [
   { id: "tudo", nome: "Tudo" },
   { id: "daacao", nome: "Desta ação" },
@@ -37,6 +37,7 @@ const CATEGORIAS: { id: Categoria; nome: string }[] = [
   { id: "sessao", nome: "Sessões" },
   { id: "dia", nome: "Datas" },
   { id: "evento", nome: "Eventos" },
+  { id: "marco", nome: "Marcos" },
   { id: "cond", nome: "Condições" },
   { id: "efeito", nome: "Efeitos" },
   { id: "dano", nome: "Dano" },
@@ -44,7 +45,7 @@ const CATEGORIAS: { id: Categoria; nome: string }[] = [
 ];
 
 // Só aparecem no diário (quando há o que listar).
-const DO_DIARIO = new Set<Categoria>(["ficha", "nota", "sessao", "dia", "evento"]);
+const DO_DIARIO = new Set<Categoria>(["ficha", "nota", "sessao", "dia", "evento", "marco"]);
 
 type Opcao = {
   chave: string;

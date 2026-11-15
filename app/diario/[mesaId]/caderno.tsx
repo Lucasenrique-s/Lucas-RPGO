@@ -20,13 +20,18 @@ import {
   rotuloSessao,
   type CalendarioDiarioDTO,
   type FichaDiarioDTO,
+  type MencaoDiarioDTO,
   type NotaDiarioDTO,
+  type RelacaoDTO,
   type SessaoDiarioDTO,
 } from "@/lib/diario-tipos";
 import { montarLinha, type SecaoLinha } from "@/lib/diario-linha";
 import { DescricaoRica } from "@/components/descricao-rica/descricao-rica";
 import type { ContextoRico, OpcaoRef } from "@/components/descricao-rica/atomos";
+import type { ConfigMencao, ItemMencao } from "@/lib/diario-mencao";
 import { EditorComImagem, avisar, iconeDoTipo } from "./diario-partes";
+import { BuscaCaderno } from "./caderno-busca";
+import { FolhaEntidade } from "./caderno-folha";
 import { criarNotaDiario } from "./actions";
 import "./caderno.css";
 
@@ -84,13 +89,15 @@ type PropsConteudo = {
   calendario: CalendarioDiarioDTO | null;
   contexto: ContextoRico;
   paginaFicha: Record<string, number>;
+  // Quantas anotações minhas citam cada página (índice vivo).
+  contagem: Record<string, number>;
   aoAbrirFicha: (id: string) => void;
   aoAbrirNota: (id: string) => void;
   // Recebe a coluna do texto (não a página lógica).
   aoIrParaColuna: (coluna: number) => void;
 };
 
-const Conteudo = memo(function Conteudo({ secoes, grupos, calendario, contexto, paginaFicha, aoAbrirFicha, aoAbrirNota, aoIrParaColuna }: PropsConteudo) {
+const Conteudo = memo(function Conteudo({ secoes, grupos, calendario, contexto, paginaFicha, contagem, aoAbrirFicha, aoAbrirNota, aoIrParaColuna }: PropsConteudo) {
   return (
     <>
       {secoes.map((s) => (
@@ -129,9 +136,9 @@ const Conteudo = memo(function Conteudo({ secoes, grupos, calendario, contexto, 
               <article key={it.id} className="cad-ficha" data-ficha={it.id}>
                 <div className="cad-moldura cad-moldura--foto">
                   <div className="cad-foto" style={{ background: TIPOS_FICHA.find((t) => t.id === it.ficha.tipo)?.cor }}>
-                    {it.ficha.retratoUrl ? (
+                    {it.ficha.retratos[0]?.url || it.ficha.retratoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.ficha.retratoUrl} alt="" />
+                      <img src={it.ficha.retratos[0]?.url ?? it.ficha.retratoUrl ?? ""} alt="" />
                     ) : (
                       <i className={`fas ${iconeDoTipo(it.ficha.tipo)}`} />
                     )}
@@ -169,7 +176,10 @@ const Conteudo = memo(function Conteudo({ secoes, grupos, calendario, contexto, 
             </h4>
             {g.itens.map((f) => (
               <button key={f.id} type="button" className="cad-linha-indice" onClick={() => paginaFicha[f.id] !== undefined && aoIrParaColuna(paginaFicha[f.id])}>
-                <span>{f.nome}</span>
+                <span>
+                  {f.nome}
+                  {contagem[f.id] ? <small className="cad-indice-qtd"> · {contagem[f.id]}</small> : null}
+                </span>
                 <i className="cad-pontos" />
                 <span>{paginaFicha[f.id] !== undefined ? paginaFicha[f.id] + 1 : ""}</span>
               </button>
@@ -251,9 +261,15 @@ export function Caderno({
   calendario,
   contexto,
   refs,
+  cfg,
+  mencoes,
+  relacoes,
+  folhaId,
   somenteLeitura,
   pedidoSair,
   aoAbrirFicha,
+  aoFecharFolha,
+  aoAbrirCompleta,
   aoAbrirNota,
   aoSalvou,
   aoSair,
@@ -268,10 +284,18 @@ export function Caderno({
   calendario: CalendarioDiarioDTO | null;
   contexto: ContextoRico;
   refs: OpcaoRef[];
+  cfg: ConfigMencao;
+  mencoes: MencaoDiarioDTO[];
+  relacoes: RelacaoDTO[];
+  // Página de entidade aberta na folha da direita (null = o texto).
+  folhaId: string | null;
   somenteLeitura: boolean;
   // Quando muda, o caderno desce da tela e chama `aoSair`.
   pedidoSair: number;
+  // Abre a folha da entidade (a ficha completa é `aoAbrirCompleta`).
   aoAbrirFicha: (id: string) => void;
+  aoFecharFolha: () => void;
+  aoAbrirCompleta: (id: string) => void;
   aoAbrirNota: (id: string) => void;
   aoSalvou: () => void;
   aoSair: () => void;
@@ -305,6 +329,7 @@ export function Caderno({
     [sessoes, minhasFichas, minhasNotas],
   );
   const ativa = sessoes.find((s) => s.ativa) ?? null;
+  const folhaFicha = folhaId ? (fichas.find((f) => f.id === folhaId) ?? null) : null;
 
   // Com duas páginas, a guarda (verso da capa) ocupa a página lógica 0.
   const off = dim.por === 2 ? 1 : 0;
@@ -414,6 +439,8 @@ export function Caderno({
     (destino: number) => {
       const alvo = alinha(destino);
       if (alvo === pag || anim) return;
+      // Virar a página volta ao texto.
+      if (folhaId) aoFecharFolha();
       // Ao fechar, lembra a página onde parou.
       if (alvo < 0 && pag >= 0) setUltima(pag);
       if (reduzMovimento()) {
@@ -422,7 +449,7 @@ export function Caderno({
       }
       setAnim({ dir: alvo > pag ? 1 : -1, de: pag, alvo, id: Date.now() });
     },
-    [alinha, pag, anim],
+    [alinha, pag, anim, folhaId, aoFecharFolha],
   );
 
   // Vai pra uma coluna do texto (alinha ao par que a contém).
@@ -470,17 +497,84 @@ export function Caderno({
     return () => window.clearTimeout(t);
   }, [pedidoSair, guardar]);
 
-  // Setas do teclado (fora de campos de texto).
+  /* ─── Folhear rápido ─────────────────────────────────────
+     Num diário grande, virar página por página não basta: segurar a seta (ou a tecla),
+     PageUp/PageDown e a régua embaixo passam muitas páginas sem a animação da folha. */
+
+  const pagRef = useRef(pag);
+  useEffect(() => {
+    pagRef.current = pag;
+  }, [pag]);
+  const limiteRef = useRef({ por: dim.por, ultimaEsquerda });
+  useEffect(() => {
+    limiteRef.current = { por: dim.por, ultimaEsquerda };
+  }, [dim.por, ultimaEsquerda]);
+
+  // Vai direto pra uma página (sem a folha girar). Só com o livro aberto.
+  const irDireto = useCallback(
+    (destino: number) => {
+      const { por, ultimaEsquerda: fim } = limiteRef.current;
+      const atual = pagRef.current;
+      if (atual < 0) return;
+      const alvo = Math.max(0, Math.min(fim, Math.floor(destino / por) * por));
+      if (alvo === atual) return;
+      pagRef.current = alvo;
+      setPag(alvo);
+      if (folhaId) aoFecharFolha();
+    },
+    [folhaId, aoFecharFolha],
+  );
+  const folhear = useCallback((dir: 1 | -1, paginas = 1) => irDireto(pagRef.current + dir * paginas * limiteRef.current.por), [irDireto]);
+
+  // Segurar o botão da seta: depois de um instante, passa as páginas em sequência.
+  const seguro = useRef<{ espera: number; passo: number; rapido: boolean } | null>(null);
+  const soltarSeta = useCallback(() => {
+    const s = seguro.current;
+    if (!s) return;
+    window.clearTimeout(s.espera);
+    window.clearInterval(s.passo);
+    // O clique que vem depois de um folheio não vira outra página.
+    window.setTimeout(() => (seguro.current = null), 0);
+  }, []);
+  function segurarSeta(dir: 1 | -1) {
+    if (anim || fechada) return;
+    const s = { espera: 0, passo: 0, rapido: false };
+    seguro.current = s;
+    s.espera = window.setTimeout(() => {
+      s.rapido = true;
+      folhear(dir);
+      s.passo = window.setInterval(() => folhear(dir), 110);
+    }, 450);
+  }
+  function cliqueSeta(dir: 1 | -1) {
+    if (seguro.current?.rapido) return;
+    if (dir > 0) proxima();
+    else anterior();
+  }
+  useEffect(() => soltarSeta, [soltarSeta]);
+
+  // Setas do teclado (fora de campos de texto). Segurar a tecla folheia; PageUp/PageDown pulam 10.
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       const alvo = e.target as HTMLElement | null;
       if (alvo && (alvo.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(alvo.tagName))) return;
-      if (e.key === "ArrowRight") proxima();
-      else if (e.key === "ArrowLeft") anterior();
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        const dir = e.key === "ArrowRight" ? 1 : -1;
+        if (e.repeat) folhear(dir);
+        else if (dir > 0) proxima();
+        else anterior();
+      } else if (e.key === "PageDown" || e.key === "PageUp") {
+        e.preventDefault();
+        folhear(e.key === "PageDown" ? 1 : -1, 10);
+      } else if (e.key === "Home" || e.key === "End") {
+        if (pagRef.current < 0) return;
+        e.preventDefault();
+        irDireto(e.key === "Home" ? 0 : limiteRef.current.ultimaEsquerda);
+      }
     };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
-  }, [proxima, anterior]);
+  }, [proxima, anterior, folhear, irDireto]);
 
   /* ─── Arrastar com o dedo ──────────────────────────────── */
 
@@ -549,6 +643,38 @@ export function Caderno({
     [minhasFichas],
   );
 
+  // Abre a folha da entidade; com o caderno fechado, abre o livro junto.
+  const abrirFolha = useCallback(
+    (id: string) => {
+      if (fechada) proxima();
+      aoAbrirFicha(id);
+    },
+    [fechada, proxima, aoAbrirFicha],
+  );
+
+  const contagem = useMemo(() => {
+    const minhas = new Set(minhasNotas.map((n) => n.id));
+    const c: Record<string, number> = {};
+    for (const m of mencoes) if (m.origemTipo === "nota" && m.alvoTipo === "ficha" && minhas.has(m.origemId)) c[m.alvoId] = (c[m.alvoId] ?? 0) + 1;
+    return c;
+  }, [mencoes, minhasNotas]);
+
+  // Resultado de tempo da busca: sessão vai pro começo dela; data ou evento, pra primeira anotação do dia.
+  const irParaTempo = useCallback(
+    (item: ItemMencao) => {
+      if (item.ref.tipo === "sessao") {
+        const col = inicioSecao[`sessao-${item.ref.id}`];
+        if (col === undefined) return avisar("Essa sessão não tem anotações suas no caderno.");
+        return irParaColuna(col);
+      }
+      const dias = item.ref.tipo === "evento" ? cfg.eventos.find((e) => e.id === item.ref.id)?.dataDias : Number(item.ref.id);
+      const nota = dias === undefined ? undefined : minhasNotas.find((n) => n.diaJogo === dias && paginaNota[n.id] !== undefined);
+      if (!nota) return avisar(`Você não anotou nada em ${item.detalhe ?? item.rotulo}.`);
+      irParaColuna(paginaNota[nota.id]);
+    },
+    [inicioSecao, paginaNota, minhasNotas, cfg.eventos, irParaColuna],
+  );
+
   // O texto, montado uma vez: a página e as faces da folha usam o mesmo elemento.
   const conteudo = useMemo(
     () => (
@@ -558,12 +684,13 @@ export function Caderno({
         calendario={calendario}
         contexto={contexto}
         paginaFicha={paginaFicha}
-        aoAbrirFicha={aoAbrirFicha}
+        contagem={contagem}
+        aoAbrirFicha={abrirFolha}
         aoAbrirNota={aoAbrirNota}
         aoIrParaColuna={irParaColuna}
       />
     ),
-    [secoes, grupos, calendario, contexto, paginaFicha, aoAbrirFicha, aoAbrirNota, irParaColuna],
+    [secoes, grupos, calendario, contexto, paginaFicha, contagem, abrirFolha, aoAbrirNota, irParaColuna],
   );
 
   const rotuloEscrever = ativa ? rotuloSessao(ativa) : "Entre sessões";
@@ -653,6 +780,18 @@ export function Caderno({
 
   return (
     <div className={classe} ref={bookRef}>
+      <BuscaCaderno
+        mesaId={mesaId}
+        cfg={cfg}
+        contagem={contagem}
+        podeCriar={!somenteLeitura}
+        aoAbrirFicha={abrirFolha}
+        aoIrTempo={irParaTempo}
+        aoCriou={(id) => {
+          aoSalvou();
+          abrirFolha(id);
+        }}
+      />
       <div className="cad-livro" style={estiloLivro}>
         <div className="cad-folhas" style={{ width: dim.pw * dim.por, height: dim.ph }}>
           {mostrarFechada && (
@@ -705,6 +844,7 @@ export function Caderno({
                       valor={texto}
                       onChange={setTexto}
                       refs={refs}
+                      cfg={cfg}
                       contexto={contexto}
                       placeholder="Escreva aqui… (@ menciona, cole imagens)"
                     />
@@ -722,6 +862,25 @@ export function Caderno({
                 </>
               )}
               {dim.por === 2 && !anim && <div className="cad-lombada" aria-hidden />}
+
+              {folhaFicha && !anim && !fechada && (
+                <div className="cad-folha-ent-pg" style={{ left: dim.por === 2 ? dim.pw : 0, width: dim.pw, height: dim.ph }}>
+                  <FolhaEntidade
+                    ficha={folhaFicha}
+                    fichas={fichas}
+                    notas={minhasNotas}
+                    sessoes={sessoes}
+                    mencoes={mencoes}
+                    relacoes={relacoes}
+                    contexto={contexto}
+                    paginaNota={paginaNota}
+                    aoAbrirFicha={abrirFolha}
+                    aoIrNota={(id) => paginaNota[id] !== undefined && irParaColuna(paginaNota[id])}
+                    aoAbrirCompleta={aoAbrirCompleta}
+                    aoVoltar={aoFecharFolha}
+                  />
+                </div>
+              )}
 
               {anim && plano && (
                 <div className="cad-anim" key={anim.id} aria-hidden>
@@ -789,15 +948,49 @@ export function Caderno({
 
         {!capaEmJogo && (
           <>
-            <button type="button" className="cad-seta cad-seta--esq" onClick={anterior} disabled={!!anim} aria-label={pag <= 0 ? "Voltar à capa" : "Página anterior"}>
+            <button
+              type="button"
+              className="cad-seta cad-seta--esq"
+              onClick={() => cliqueSeta(-1)}
+              onPointerDown={() => segurarSeta(-1)}
+              onPointerUp={soltarSeta}
+              onPointerLeave={soltarSeta}
+              onPointerCancel={soltarSeta}
+              disabled={!!anim} aria-label={pag <= 0 ? "Voltar à capa" : "Página anterior"}>
               <i className="fas fa-chevron-left" />
             </button>
-            <button type="button" className="cad-seta cad-seta--dir" onClick={proxima} disabled={pag + dim.por > ultimaEsquerda || !!anim} aria-label="Próxima página">
+            <button
+              type="button"
+              className="cad-seta cad-seta--dir"
+              onClick={() => cliqueSeta(1)}
+              onPointerDown={() => segurarSeta(1)}
+              onPointerUp={soltarSeta}
+              onPointerLeave={soltarSeta}
+              onPointerCancel={soltarSeta}
+              disabled={pag + dim.por > ultimaEsquerda || !!anim} aria-label="Próxima página">
               <i className="fas fa-chevron-right" />
             </button>
           </>
         )}
       </div>
+
+      {/* Régua: arrasta pra passar muitas páginas de uma vez. */}
+      {!capaEmJogo && !anim && ultimaEsquerda >= dim.por * 2 && (
+        <div className="cad-regua">
+          <span>{pag - off + 1 > 0 ? pag - off + 1 : 1}</span>
+          <input
+            type="range"
+            min={0}
+            max={ultimaEsquerda}
+            step={dim.por}
+            value={Math.max(0, pag)}
+            onChange={(e) => irDireto(Number(e.target.value))}
+            aria-label="Folhear o caderno"
+            aria-valuetext={`Página ${Math.max(1, pag - off + 1)} de ${paginas}`}
+          />
+          <span>{paginas}</span>
+        </div>
+      )}
     </div>
   );
 }

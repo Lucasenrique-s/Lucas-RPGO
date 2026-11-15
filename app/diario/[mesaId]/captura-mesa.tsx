@@ -9,5 +9,5 @@ export async function CapturaMesa({ mesaId }: { mesaId: string }) {
   if (!user) return null;
   const refs = await carregarRefsDiario(mesaId, user.id);
   if (!refs) return null;
-  return <CapturaGlobal mesaId={mesaId} meuId={refs.meuId} fichas={refs.fichas} sessoes={refs.sessoes} calendario={refs.calendario} />;
+  return <CapturaGlobal mesaId={mesaId} meuId={refs.meuId} fichas={refs.fichas} marcos={refs.marcos} sessoes={refs.sessoes} calendario={refs.calendario} />;
 }

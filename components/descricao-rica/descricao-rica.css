@@ -600,3 +600,81 @@
   padding-top: 6px;
   border-top: 1px solid var(--border);
 }
+
+/* ─── Menções do diário: palavra destacada, sem chip ───────────────────── */
+.desc-mencao {
+  background: rgba(255, 226, 60, 0.6);
+  color: #1d1d1f;
+  border-radius: 2px;
+  padding: 0 2px;
+  cursor: pointer;
+}
+.desc-mencao--local {
+  background: rgba(120, 214, 160, 0.55);
+}
+.desc-mencao--grupo {
+  background: rgba(255, 170, 120, 0.55);
+}
+.desc-mencao--item {
+  background: rgba(228, 188, 90, 0.55);
+}
+.desc-mencao--pista {
+  background: rgba(255, 150, 190, 0.55);
+}
+/* Tempo: sublinhado azul, sem fundo. */
+.desc-mencao--tempo {
+  background: transparent;
+  color: #2a5fb0;
+  border-bottom: 1.5px solid #2a5fb0;
+  border-radius: 0;
+  padding: 0;
+}
+.desc-mencao--dia {
+  border-bottom-style: dotted;
+}
+.desc-mencao--evento {
+  border-bottom-style: double;
+}
+.desc-mencao--marco {
+  border-bottom-style: dashed;
+}
+/* Ainda não existe (página nova) ou foi apagada: tracejado, sem fundo. */
+.desc-mencao--vazia {
+  background: transparent;
+  color: inherit;
+  border-bottom: 2px dashed currentColor;
+  border-radius: 0;
+  opacity: 0.8;
+  cursor: default;
+}
+
+/* Menu de menção (@ e [[ ]]) */
+.desc-menu-mencao {
+  min-width: 300px;
+  max-width: min(400px, calc(100vw - 16px));
+  max-height: 340px;
+}
+.desc-menu-sec {
+  display: block;
+  padding: 4px 6px 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-sec);
+}
+.desc-menu-criar {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+.desc-menu-criar > span {
+  display: block;
+  padding: 0 6px 2px;
+  font-size: 0.72rem;
+  color: var(--text-sec);
+}
+.desc-menu-criar > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}

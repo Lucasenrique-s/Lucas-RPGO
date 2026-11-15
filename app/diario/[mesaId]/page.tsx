@@ -47,6 +47,8 @@ export default async function DiarioPage({ params }: Params) {
         notas={dados.notas}
         sessoes={dados.sessoes}
         mencoes={dados.mencoes}
+        relacoes={dados.relacoes}
+        marcos={dados.marcos}
         autores={dados.autores}
         calendario={dados.calendario}
       />

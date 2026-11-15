@@ -1153,9 +1153,52 @@ model DiarioFicha {
   criadaEm     DateTime @default(now()) @map("criada_em")
   atualizadaEm DateTime @updatedAt @map("atualizada_em")
 
+  retratos DiarioRetrato[]
+
   @@index([mesaId, visibilidade])
   @@index([mesaId, autorId])
   @@map("diario_fichas")
+}
+
+// Vários retratos por página de entidade (o primeiro por `ordem` é o principal).
+model DiarioRetrato {
+  id      String       @id @default(uuid())
+  fichaId String       @map("ficha_id")
+  ficha   DiarioFicha  @relation(fields: [fichaId], references: [id], onDelete: Cascade)
+  url     String
+  legenda String       @default("")
+  ordem   Int          @default(0)
+  criadoEm DateTime    @default(now()) @map("criado_em")
+
+  @@index([fichaId, ordem])
+  @@map("diario_retratos")
+}
+
+// "capitão de", "aliado de", "membro de"…: de uma entidade para outra. Vale pra
+// quem pode ler a entidade de origem (e a de destino).
+model DiarioRelacao {
+  id     String @id @default(uuid())
+  mesaId String @map("mesa_id")
+  deId   String @map("de_id")
+  verbo  String
+  paraId String @map("para_id")
+  criadaEm DateTime @default(now()) @map("criada_em")
+
+  @@index([mesaId, deId])
+  @@index([paraId])
+  @@map("diario_relacoes")
+}
+
+// Um momento que só o jogador nomeou ([[Festival da Lua]] sem evento no calendário).
+model DiarioMarco {
+  id      String @id @default(uuid())
+  mesaId  String @map("mesa_id")
+  autorId String @map("autor_id")
+  nome    String
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([mesaId, autorId])
+  @@map("diario_marcos")
 }
 
 // Um trecho de texto rico, sempre ligado a uma sessão (null = "Entre sessões").

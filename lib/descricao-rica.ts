@@ -5,7 +5,7 @@
 // Em linha (podem se aninhar):
 //   **negrito**  *itálico*  __sublinhado__
 //   {{cor:#e67e22|texto}}   {{cor:#e67e22+#3498db:gradiente|texto}}
-//   [[acao:ID|Nome]]  (acao | hab | item | ficha | nota | sessao | dia | evento)      {{cond:Atordoado}}
+//   [[acao:ID|Nome]]  (acao | hab | item | ficha | nota | sessao | dia | evento | marco)      {{cond:Atordoado}}
 //   {{efeito:vantagem}}  {{efeito:resistencia|Fogo}}   {{dano:Fogo}}
 //   ((2d6+FOR))  ((2d6+FOR|Fogo))  rolagem, com o tipo de dano depois da barra
 //   :skull:  ícone
@@ -19,7 +19,7 @@
 
 // ficha | nota | sessao: o diário de bordo (lib/diario.ts).
 // dia | evento: o calendário da mesa (`[[dia:420|13 de março, 1523]]`, o id é o dia absoluto).
-export type TipoRef = "acao" | "hab" | "item" | "ficha" | "nota" | "sessao" | "dia" | "evento";
+export type TipoRef = "acao" | "hab" | "item" | "ficha" | "nota" | "sessao" | "dia" | "evento" | "marco";
 export type MarcaTexto = "negrito" | "italico" | "sublinhado";
 
 export type Inline =
@@ -80,7 +80,7 @@ const ATOMOS: { re: RegExp; fazer: (m: RegExpExecArray) => Inline }[] = [
     fazer: (m) => ({ t: "imagem", legenda: m[1], url: m[2] }),
   },
   {
-    re: /\[\[(acao|hab|item|ficha|nota|sessao|dia|evento):([^|\]\n]+)\|([^\]\n]*)\]\]/uy,
+    re: /\[\[(acao|hab|item|ficha|nota|sessao|dia|evento|marco):([^|\]\n]+)\|([^\]\n]*)\]\]/uy,
     fazer: (m) => ({ t: "ref", tipo: m[1] as TipoRef, id: m[2], nome: m[3] }),
   },
   { re: /\{\{cond:([^}\n]+)\}\}/uy, fazer: (m) => ({ t: "cond", nome: m[1].trim() }) },

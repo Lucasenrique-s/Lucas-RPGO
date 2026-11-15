@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { avisarDiario } from "@/lib/diario-aovivo";
 import { usuarioDaRequest } from "@/lib/supabase/server";
 import { ErroDeUso, executar as executarEm } from "@/lib/acoes";
-import { acessoAoDiario, podeApagarDiario, podeEscreverDiario, recalcularMencoes, type AcessoDiario } from "@/lib/diario";
+import { acessoAoDiario, podeApagarDiario, podeEscreverDiario, podeLerDiario, recalcularMencoes, resolverNovos, type AcessoDiario } from "@/lib/diario";
 import {
   LIMITES_DIARIO as L,
   RELACAO_FICHA,
@@ -95,8 +95,9 @@ export async function criarFichaDiario(mesaId: string, dados: DadosFicha) {
     const acesso = await autorizar(mesaId);
     const d = lerFicha(dados);
     const id = await prisma.$transaction(async (tx) => {
-      const f = await tx.diarioFicha.create({ data: { ...d, mesaId, autorId: acesso.userId } });
-      await recalcularMencoes(tx, mesaId, "ficha", f.id, d.resumo);
+      const resumo = await resolverNovos(tx, mesaId, acesso.userId, d.resumo);
+      const f = await tx.diarioFicha.create({ data: { ...d, resumo, mesaId, autorId: acesso.userId } });
+      await recalcularMencoes(tx, mesaId, "ficha", f.id, resumo);
       return f.id;
     });
     revalidar(mesaId);
@@ -111,8 +112,9 @@ export async function editarFichaDiario(mesaId: string, id: string, dados: Dados
     if (!atual || !podeEscreverDiario(acesso, atual)) throw new ErroDeUso("Ficha não encontrada.");
     const d = lerFicha(dados);
     await prisma.$transaction(async (tx) => {
-      await tx.diarioFicha.update({ where: { id }, data: d });
-      await recalcularMencoes(tx, mesaId, "ficha", id, d.resumo);
+      const resumo = await resolverNovos(tx, mesaId, acesso.userId, d.resumo);
+      await tx.diarioFicha.update({ where: { id }, data: { ...d, resumo } });
+      await recalcularMencoes(tx, mesaId, "ficha", id, resumo);
     });
     revalidar(mesaId);
   });
@@ -123,8 +125,10 @@ export async function apagarFichaDiario(mesaId: string, id: string) {
     const acesso = await autorizar(mesaId);
     const atual = await prisma.diarioFicha.findFirst({ where: { id, mesaId } });
     if (!atual || !podeApagarDiario(acesso, atual)) throw new ErroDeUso("Ficha não encontrada.");
+    // Os @ que citavam a página ficam nos textos e passam a aparecer tracejados.
     await prisma.$transaction([
       prisma.diarioFicha.delete({ where: { id } }),
+      prisma.diarioRelacao.deleteMany({ where: { OR: [{ deId: id }, { paraId: id }] } }),
       prisma.diarioMencao.deleteMany({
         where: { OR: [{ origemTipo: "ficha", origemId: id }, { alvoTipo: "ficha", alvoId: id }] },
       }),
@@ -176,10 +180,12 @@ export async function criarNotaDiario(mesaId: string, dados: DadosNota) {
     // Data do jogo no calendário da mesa (se houver), pra ordenar dentro da história.
     const cal = await prisma.calendario.findUnique({ where: { mesaId }, select: { dataAtualDias: true } });
     const id = await prisma.$transaction(async (tx) => {
+      // Páginas e marcos mencionados mas ainda inexistentes nascem aqui, ao guardar.
+      const corpo = await resolverNovos(tx, mesaId, acesso.userId, d.corpo);
       const n = await tx.diarioNota.create({
-        data: { ...d, mesaId, autorId: acesso.userId, sessaoId, diaJogo: cal?.dataAtualDias ?? null },
+        data: { ...d, corpo, mesaId, autorId: acesso.userId, sessaoId, diaJogo: cal?.dataAtualDias ?? null },
       });
-      await recalcularMencoes(tx, mesaId, "nota", n.id, d.corpo);
+      await recalcularMencoes(tx, mesaId, "nota", n.id, corpo);
       return n.id;
     });
     revalidar(mesaId);
@@ -200,8 +206,9 @@ export async function editarNotaDiario(mesaId: string, id: string, dados: DadosN
           ? null
           : await sessaoValida(mesaId, dados.sessaoId);
     await prisma.$transaction(async (tx) => {
-      await tx.diarioNota.update({ where: { id }, data: { ...d, sessaoId } });
-      await recalcularMencoes(tx, mesaId, "nota", id, d.corpo);
+      const corpo = await resolverNovos(tx, mesaId, acesso.userId, d.corpo);
+      await tx.diarioNota.update({ where: { id }, data: { ...d, corpo, sessaoId } });
+      await recalcularMencoes(tx, mesaId, "nota", id, corpo);
     });
     revalidar(mesaId);
   });
@@ -351,6 +358,87 @@ export async function definirEditoresFichaDiario(mesaId: string, id: string, edi
     const validos: string[] = [];
     for (const u of ids) if (await acessoAoDiario(mesaId, u)) validos.push(u);
     await prisma.diarioFicha.update({ where: { id }, data: { editores: validos } });
+    revalidar(mesaId);
+  });
+}
+
+// ─── Retratos (vários por página) ──────────────────────────────
+
+const MAX_RETRATOS = 12;
+
+async function fichaEditavel(mesaId: string, fichaId: string) {
+  const acesso = await autorizar(mesaId);
+  const f = await prisma.diarioFicha.findFirst({ where: { id: fichaId, mesaId } });
+  if (!f || !podeEscreverDiario(acesso, f)) throw new ErroDeUso("Página não encontrada.");
+  return { acesso, f };
+}
+
+export async function adicionarRetratoDiario(mesaId: string, fichaId: string, url: string, legenda = "") {
+  return executar(async () => {
+    await fichaEditavel(mesaId, fichaId);
+    const u = urlOpcional(url);
+    if (!u) throw new ErroDeUso("Endereço da imagem inválido.");
+    const total = await prisma.diarioRetrato.count({ where: { fichaId } });
+    if (total >= MAX_RETRATOS) throw new ErroDeUso(`No máximo ${MAX_RETRATOS} retratos por página.`);
+    const ultimo = await prisma.diarioRetrato.findFirst({ where: { fichaId }, orderBy: { ordem: "desc" }, select: { ordem: true } });
+    const r = await prisma.diarioRetrato.create({
+      data: { fichaId, url: u, legenda: texto(legenda, 120, "Legenda"), ordem: (ultimo?.ordem ?? -1) + 1 },
+    });
+    revalidar(mesaId);
+    return { id: r.id };
+  });
+}
+
+export async function atualizarRetratoDiario(mesaId: string, retratoId: string, mudanca: { legenda?: string; principal?: boolean }) {
+  return executar(async () => {
+    const r = await prisma.diarioRetrato.findUnique({ where: { id: retratoId } });
+    if (!r) throw new ErroDeUso("Retrato não encontrado.");
+    await fichaEditavel(mesaId, r.fichaId);
+    const data: { legenda?: string; ordem?: number } = {};
+    if (mudanca.legenda !== undefined) data.legenda = texto(mudanca.legenda, 120, "Legenda");
+    if (mudanca.principal) {
+      const primeiro = await prisma.diarioRetrato.findFirst({ where: { fichaId: r.fichaId }, orderBy: { ordem: "asc" }, select: { ordem: true } });
+      data.ordem = (primeiro?.ordem ?? 0) - 1;
+    }
+    await prisma.diarioRetrato.update({ where: { id: retratoId }, data });
+    revalidar(mesaId);
+  });
+}
+
+export async function removerRetratoDiario(mesaId: string, retratoId: string) {
+  return executar(async () => {
+    const r = await prisma.diarioRetrato.findUnique({ where: { id: retratoId } });
+    if (!r) throw new ErroDeUso("Retrato não encontrado.");
+    await fichaEditavel(mesaId, r.fichaId);
+    await prisma.diarioRetrato.delete({ where: { id: retratoId } });
+    revalidar(mesaId);
+  });
+}
+
+// ─── Relações entre páginas ────────────────────────────────────
+
+export async function adicionarRelacaoDiario(mesaId: string, deId: string, verbo: string, paraId: string) {
+  return executar(async () => {
+    const { acesso } = await fichaEditavel(mesaId, deId);
+    const v = texto(verbo, 40, "Relação");
+    if (!v) throw new ErroDeUso("Diga a relação (ex.: aliado de).");
+    if (deId === paraId) throw new ErroDeUso("Uma página não se relaciona consigo mesma.");
+    const alvo = await prisma.diarioFicha.findFirst({ where: { id: paraId, mesaId } });
+    if (!alvo || !podeLerDiario(acesso, alvo)) throw new ErroDeUso("Página de destino não encontrada.");
+    const igual = await prisma.diarioRelacao.findFirst({ where: { mesaId, deId, paraId, verbo: { equals: v, mode: "insensitive" } } });
+    if (igual) return { id: igual.id };
+    const r = await prisma.diarioRelacao.create({ data: { mesaId, deId, verbo: v, paraId } });
+    revalidar(mesaId);
+    return { id: r.id };
+  });
+}
+
+export async function removerRelacaoDiario(mesaId: string, relacaoId: string) {
+  return executar(async () => {
+    const r = await prisma.diarioRelacao.findFirst({ where: { id: relacaoId, mesaId } });
+    if (!r) throw new ErroDeUso("Relação não encontrada.");
+    await fichaEditavel(mesaId, r.deId);
+    await prisma.diarioRelacao.delete({ where: { id: relacaoId } });
     revalidar(mesaId);
   });
 }

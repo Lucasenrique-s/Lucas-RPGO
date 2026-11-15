@@ -731,3 +731,194 @@ span.cad-salvar {
     opacity: 1;
   }
 }
+
+/* ─── Busca fixa no topo ─────────────────────────────────────────────── */
+.cad-busca {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 560px;
+  margin: 0 auto 12px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-sec);
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.3;
+}
+.cad-busca input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+.cad-busca-res {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--primary);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+  color: var(--text);
+}
+.cad-busca-sec {
+  padding: 4px 6px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-sec);
+}
+.cad-busca-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cad-busca-item:hover,
+.cad-busca-item[aria-selected="true"] {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.cad-busca-item small {
+  margin-left: auto;
+  color: var(--text-sec);
+  font-size: 12px;
+  text-align: right;
+}
+.cad-busca-ico {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+}
+.cad-busca-ico--tempo { background: #3b6ea5; }
+.cad-busca-ico--criar { background: transparent; border: 1px dashed var(--text-sec); color: var(--text-sec); font-size: 16px; }
+.cad-busca-tipos { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; font-size: 13px; }
+.cad-busca-tipos > div { display: flex; flex-wrap: wrap; gap: 4px; }
+.cad-busca-tipos button {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.cad-busca-tipos button:hover { background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.cad-busca-dica { padding: 6px 8px; font-size: 12px; color: var(--text-sec); }
+.cad-indice-qtd { opacity: 0.6; font-size: 0.7em; }
+
+/* ─── Folha da entidade: a página da direita vira a página dela ─────── */
+.cad-folha-ent-pg {
+  position: absolute;
+  top: 0;
+  z-index: 8;
+  overflow-y: auto;
+  padding: var(--pady) var(--padx);
+  background: var(--papel);
+  box-shadow: inset 6px 0 8px -6px rgba(0, 0, 0, 0.25);
+  scrollbar-width: thin;
+}
+.cad-folha-ent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  line-height: 26px;
+}
+.cad-clipe {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #6b6f76;
+}
+.cad-clipe button,
+.cad-ent-completa {
+  border: 0;
+  background: transparent;
+  color: #3b6ea5;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.cad-ent-cab { display: flex; gap: 14px; align-items: flex-start; }
+.cad-ent-retratos { flex: none; width: 104px; }
+.cad-ent-retratos .cad-moldura { margin: 0; }
+.cad-ent-minis { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.cad-ent-minis button { width: 28px; height: 28px; padding: 0; border: 2px solid transparent; border-radius: 4px; overflow: hidden; background: none; cursor: pointer; }
+.cad-ent-minis button.on { border-color: var(--tinta); }
+.cad-ent-minis img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cad-ent-nome { margin: 0; font-size: 1.5em; line-height: 1.1; }
+.cad-ent-sec { margin: 8px 0 0; padding-bottom: 2px; border-bottom: 1px dotted var(--tinta); font-size: 1em; }
+.cad-ent-rels { margin: 0; padding: 0; list-style: none; }
+.cad-ent-link { border: 0; font: inherit; cursor: pointer; }
+.cad-ent-sessao-rot { font-size: 0.8em; color: #6b6f76; }
+.cad-ent-trecho {
+  display: block;
+  width: 100%;
+  padding: 2px 0 2px 8px;
+  border: 0;
+  border-left: 2px solid #d9d4c4;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cad-ent-trecho:disabled { cursor: default; }
+.cad-ent-trecho small { margin-left: 6px; color: #6b6f76; }
+.cad-ent-completa { margin-top: 10px; align-self: flex-start; font-family: system-ui, sans-serif; font-size: 12px; }
+.cad-clipe { padding-right: 24px; }
+
+/* ─── Régua de folhear ──────────────────────────────────────────────── */
+.cad-regua {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 560px;
+  margin: 10px auto 0;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--text-sec);
+}
+.cad-regua input {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--primary);
+}
+.cad-regua span {
+  min-width: 2ch;
+  text-align: center;
+}

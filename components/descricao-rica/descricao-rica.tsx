@@ -15,7 +15,10 @@ import { linhasDaMecanica, mecanicaDa } from "@/lib/condicoes-mecanica";
 import { formatarMod, modificador } from "@/lib/op-rpg";
 import { dataRelativa } from "@/lib/calendario/engine";
 import {
+  ICONE_REF,
+  TIPOS_MENCAO,
   aparenciaDoAtomo,
+  aparenciaMencao,
   atributoRico,
   cdDaSalvaguarda,
   efeitoDaAcao,
@@ -140,7 +143,41 @@ function NoView({ no, ctx }: { no: Inline; ctx?: ContextoRico }) {
   }
 }
 
+// Menção do diário: palavra destacada, sem chip. Clicar abre o que ela aponta.
+function MencaoView({ no, ctx }: { no: Extract<Atomo, { t: "ref" }>; ctx?: ContextoRico }) {
+  const m = aparenciaMencao(no, ctx);
+  let texto = m.info?.texto;
+  let selo = m.info?.selo;
+  if (m.novo) {
+    selo = "página nova";
+    texto = "Será criada ao guardar a anotação.";
+  } else if (m.apagada) {
+    selo = "não existe";
+    texto = "Esta página foi apagada. O texto continua aqui.";
+  } else if (no.tipo === "dia") {
+    const dias = Number(no.id);
+    const hoje = ctx?.calendario?.hoje;
+    selo = "Data do calendário";
+    texto = hoje !== undefined && Number.isFinite(dias) ? dataRelativa(dias, hoje) : undefined;
+  }
+  const clicavel = !!ctx?.aoAbrirRef && !m.novo && !m.apagada;
+  return (
+    <Tooltip icone={m.info?.icone ?? ICONE_REF[no.tipo]} titulo={m.info?.titulo ?? no.nome} selo={selo} texto={texto}>
+      <span
+        className={m.classe}
+        data-no={JSON.stringify(no)}
+        tabIndex={clicavel ? 0 : undefined}
+        role={clicavel ? "button" : undefined}
+        onClick={() => clicavel && ctx?.aoAbrirRef?.(no.tipo, no.id)}
+      >
+        {no.nome}
+      </span>
+    </Tooltip>
+  );
+}
+
 function ChipView({ no, ctx }: { no: Atomo; ctx?: ContextoRico }) {
+  if (no.t === "ref" && TIPOS_MENCAO.has(no.tipo)) return <MencaoView no={no} ctx={ctx} />;
   const ap = aparenciaDoAtomo(no, ctx);
   const estilo = ap.fx ? ap.fx.style : ap.cor ? ({ "--chip-cor": ap.cor } as CSSProperties) : undefined;
   const classeChip = `desc-chip ${ap.classe}${ap.fx ? ` ${ap.fx.className}` : ""}`;

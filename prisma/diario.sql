@@ -53,3 +53,35 @@ create table if not exists public.diario_mencoes (
   primary key (origem_tipo, origem_id, alvo_tipo, alvo_id)
 );
 create index if not exists diario_mencoes_alvo_tipo_alvo_id_idx on public.diario_mencoes (alvo_tipo, alvo_id);
+
+
+-- Etapa 1 da nova abordagem: vários retratos, relações e marcos pessoais.
+create table if not exists public.diario_retratos (
+  id        text primary key,
+  ficha_id  text not null references public.diario_fichas(id) on delete cascade,
+  url       text not null,
+  legenda   text not null default '',
+  ordem     integer not null default 0,
+  criado_em timestamp(3) not null default current_timestamp
+);
+create index if not exists diario_retratos_ficha_id_ordem_idx on public.diario_retratos (ficha_id, ordem);
+
+create table if not exists public.diario_relacoes (
+  id        text primary key,
+  mesa_id   text not null,
+  de_id     text not null,
+  verbo     text not null,
+  para_id   text not null,
+  criada_em timestamp(3) not null default current_timestamp
+);
+create index if not exists diario_relacoes_mesa_id_de_id_idx on public.diario_relacoes (mesa_id, de_id);
+create index if not exists diario_relacoes_para_id_idx on public.diario_relacoes (para_id);
+
+create table if not exists public.diario_marcos (
+  id        text primary key,
+  mesa_id   text not null,
+  autor_id  text not null,
+  nome      text not null,
+  criado_em timestamp(3) not null default current_timestamp
+);
+create index if not exists diario_marcos_mesa_id_autor_id_idx on public.diario_marcos (mesa_id, autor_id);

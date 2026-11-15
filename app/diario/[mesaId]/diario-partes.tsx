@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { createClient } from "@/lib/supabase/client";
 import { exigir } from "@/lib/acoes";
 import { imagensDeRica } from "@/lib/descricao-rica";
+import type { ConfigMencao } from "@/lib/diario-mencao";
 import {
   RELACAO_FICHA,
   STATUS_FICHA,
@@ -16,13 +16,13 @@ import {
   type FichaDiarioDTO,
   type MencaoDiarioDTO,
   type NotaDiarioDTO,
+  type RelacaoDTO,
   type SessaoDiarioDTO,
   type TipoFichaDiario,
 } from "@/lib/diario-tipos";
 import { DescricaoRica } from "@/components/descricao-rica/descricao-rica";
 import { EditorRico } from "@/components/descricao-rica/editor-rico";
 import type { ContextoRico, OpcaoRef } from "@/components/descricao-rica/atomos";
-import { RetratoUpload } from "@/app/bestiario/retrato-upload";
 import {
   apagarFichaDiario,
   apagarNotaDiario,
@@ -32,8 +32,13 @@ import {
   definirEditoresFichaDiario,
   editarNotaDiario,
   mesclarFichaDiario,
+  adicionarRelacaoDiario,
+  adicionarRetratoDiario,
+  atualizarRetratoDiario,
   nomearSessaoDiario,
   publicarFichaDiario,
+  removerRelacaoDiario,
+  removerRetratoDiario,
   publicarNotaDiario,
 } from "./actions";
 
@@ -331,6 +336,7 @@ export function EditorComImagem({
   valor,
   onChange,
   refs,
+  cfg,
   contexto,
   placeholder,
 }: {
@@ -339,10 +345,11 @@ export function EditorComImagem({
   valor: string;
   onChange: (v: string) => void;
   refs: OpcaoRef[];
+  // O que o `@` e o `[[ ]]` oferecem (páginas, sessões, eventos, calendário).
+  cfg: ConfigMencao;
   contexto: ContextoRico;
   placeholder: string;
 }) {
-  const router = useRouter();
   return (
     <div className="diario-editor-caixa">
       <EditorRico
@@ -352,15 +359,7 @@ export function EditorComImagem({
         contexto={contexto}
         placeholder={placeholder}
         enviarImagem={(arquivo) => enviarImagem(mesaId, meuId, arquivo)}
-        criarFicha={{
-          tipos: TIPOS_FICHA.map((t) => ({ id: t.id, nome: t.nome, icone: t.icone })),
-          criar: async (nome, tipo) => {
-            const r = exigir(await criarFichaDiario(mesaId, { tipo: tipo as TipoFichaDiario, nome }));
-            // A ficha nova entra na linha e vira opção do @ nas próximas menções.
-            router.refresh();
-            return { tipo: "ficha", id: r.id, nome };
-          },
-        }}
+        mencoes={cfg}
       />
     </div>
   );
@@ -375,6 +374,7 @@ export function NotaForm({
   sessaoPadrao,
   sessoes,
   refs,
+  cfg,
   contexto,
   aoFechar,
   aoSalvar,
@@ -385,6 +385,7 @@ export function NotaForm({
   sessaoPadrao: string | null;
   sessoes: SessaoDiarioDTO[];
   refs: OpcaoRef[];
+  cfg: ConfigMencao;
   contexto: ContextoRico;
   aoFechar: () => void;
   aoSalvar: () => void;
@@ -431,8 +432,9 @@ export function NotaForm({
         valor={corpo}
         onChange={setCorpo}
         refs={refs}
+        cfg={cfg}
         contexto={contexto}
-        placeholder="O que aconteceu? (@ menciona uma ficha ou sessão)"
+        placeholder="O que aconteceu? (@ menciona uma página · [[ ]] liga a um tempo)"
       />
       <div className="diario-form-linha">
         <label>
@@ -474,6 +476,264 @@ export function NotaForm({
 
 /* ─── Fichas ─────────────────────────────────────────────── */
 
+// Edita a página: o autor, ou (na pública) o narrador e os editores que o autor escolheu.
+const souAutorOuEditor = (f: FichaDiarioDTO, meuId: string, ehNarrador: boolean) =>
+  f.autorId === meuId || (f.visibilidade === "publica" && (ehNarrador || f.editores.includes(meuId)));
+
+/* ─── Retratos: vários, com legenda ──────────────────────── */
+
+function GaleriaRetratos({
+  mesaId,
+  meuId,
+  ficha,
+  podeEditar,
+  aoAtualizar,
+}: {
+  mesaId: string;
+  meuId: string;
+  ficha: FichaDiarioDTO;
+  podeEditar: boolean;
+  aoAtualizar: () => void;
+}) {
+  const lista = ficha.retratos.length > 0 ? ficha.retratos : ficha.retratoUrl ? [{ id: "legado", url: ficha.retratoUrl, legenda: "" }] : [];
+  const [sel, setSel] = useState(0);
+  const [enviando, setEnviando] = useState(false);
+  const atual = lista[Math.min(sel, Math.max(0, lista.length - 1))];
+
+  async function adicionar(arq: File) {
+    setEnviando(true);
+    try {
+      const url = await enviarImagem(mesaId, meuId, arq);
+      exigir(await adicionarRetratoDiario(mesaId, ficha.id, url));
+      setSel(lista.length);
+      aoAtualizar();
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : "Falha ao enviar a imagem.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function mudar(id: string, mudanca: { legenda?: string; principal?: boolean }) {
+    try {
+      exigir(await atualizarRetratoDiario(mesaId, id, mudanca));
+      if (mudanca.principal) setSel(0);
+      aoAtualizar();
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : "Falha ao salvar.");
+    }
+  }
+
+  async function remover(id: string) {
+    if (!(await confirmar("Remover este retrato?"))) return;
+    try {
+      exigir(await removerRetratoDiario(mesaId, id));
+      setSel(0);
+      aoAtualizar();
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : "Falha ao remover.");
+    }
+  }
+
+  return (
+    <div className="diario-retratos">
+      <div className="diario-polaroid">
+        {atual ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={atual.url} alt={atual.legenda} />
+        ) : (
+          <div className="diario-polaroid-vazio">
+            <i className={`fas ${iconeDoTipo(ficha.tipo)}`} />
+          </div>
+        )}
+      </div>
+      {atual && podeEditar && atual.id !== "legado" ? (
+        <input
+          key={atual.id}
+          className="diario-legenda"
+          type="text"
+          maxLength={120}
+          defaultValue={atual.legenda}
+          placeholder="Legenda (ex.: cartaz · Sessão 8)"
+          aria-label="Legenda do retrato"
+          onBlur={(e) => e.target.value !== atual.legenda && void mudar(atual.id, { legenda: e.target.value })}
+        />
+      ) : (
+        atual?.legenda && <div className="diario-legenda diario-legenda--texto">{atual.legenda}</div>
+      )}
+      <div className="diario-miniaturas">
+        {lista.map((r, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <button key={r.id} type="button" className={i === sel ? "on" : ""} onClick={() => setSel(i)} title={r.legenda || `Retrato ${i + 1}`} aria-label={r.legenda || `Retrato ${i + 1}`}>
+            <img src={r.url} alt="" />
+          </button>
+        ))}
+        {podeEditar && (
+          <label className="diario-miniatura-mais" title="Adicionar retrato">
+            {enviando ? "…" : "+"}
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              disabled={enviando}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) void adicionar(f);
+              }}
+            />
+          </label>
+        )}
+      </div>
+      {atual && podeEditar && atual.id !== "legado" && (
+        <div className="diario-retrato-acoes">
+          {sel > 0 && (
+            <button type="button" className="diario-link" onClick={() => void mudar(atual.id, { principal: true })}>
+              tornar principal
+            </button>
+          )}
+          <button type="button" className="diario-link" onClick={() => void remover(atual.id)}>
+            remover
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Relações com outras páginas ────────────────────────── */
+
+const VERBOS = ["aliado de", "inimigo de", "membro de", "líder de", "capitão de", "está em", "tem", "pertence a", "irmão de", "mentor de"];
+
+function RelacoesFicha({
+  mesaId,
+  ficha,
+  fichas,
+  relacoes,
+  podeEditar,
+  aoAbrirFicha,
+  aoAtualizar,
+}: {
+  mesaId: string;
+  ficha: FichaDiarioDTO;
+  fichas: FichaDiarioDTO[];
+  relacoes: RelacaoDTO[];
+  podeEditar: boolean;
+  aoAbrirFicha: (id: string) => void;
+  aoAtualizar: () => void;
+}) {
+  const [verbo, setVerbo] = useState("");
+  const [alvo, setAlvo] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const de = relacoes.filter((r) => r.deId === ficha.id);
+  const para = relacoes.filter((r) => r.paraId === ficha.id);
+  const nome = (id: string) => fichas.find((f) => f.id === id);
+  const membros = para.filter((r) => /membro/i.test(r.verbo)).map((r) => nome(r.deId)).filter((f): f is FichaDiarioDTO => !!f);
+  const classe = (f: FichaDiarioDTO) => `desc-mencao desc-mencao--${f.tipo}`;
+
+  async function adicionar() {
+    if (!verbo.trim() || !alvo) return;
+    setSalvando(true);
+    try {
+      exigir(await adicionarRelacaoDiario(mesaId, ficha.id, verbo, alvo));
+      setVerbo("");
+      setAlvo("");
+      aoAtualizar();
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : "Falha ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function tirar(id: string) {
+    try {
+      exigir(await removerRelacaoDiario(mesaId, id));
+      aoAtualizar();
+    } catch (e) {
+      avisar(e instanceof Error ? e.message : "Falha ao remover.");
+    }
+  }
+
+  if (de.length === 0 && para.length === 0 && !podeEditar) return null;
+  return (
+    <>
+      <h3 className="diario-grupo-titulo">Relações</h3>
+      {membros.length > 0 && (
+        <p className="diario-aviso">
+          Membros:{" "}
+          {membros.map((m, i) => (
+            <span key={m.id}>
+              {i > 0 ? ", " : ""}
+              <button type="button" className={`${classe(m)} diario-mencao-botao`} onClick={() => aoAbrirFicha(m.id)}>
+                {m.nome}
+              </button>
+            </span>
+          ))}
+        </p>
+      )}
+      <div className="diario-relacoes">
+        {de.map((r) => {
+          const f = nome(r.paraId);
+          return (
+            <div key={r.id} className="diario-relacao">
+              <span>{r.verbo}</span>
+              {f ? (
+                <button type="button" className={`${classe(f)} diario-mencao-botao`} onClick={() => aoAbrirFicha(f.id)}>
+                  {f.nome}
+                </button>
+              ) : (
+                <span className="desc-mencao desc-mencao--vazia">página que não existe</span>
+              )}
+              {podeEditar && (
+                <button type="button" className="diario-link" onClick={() => void tirar(r.id)} aria-label="Remover relação">
+                  ×
+                </button>
+              )}
+            </div>
+          );
+        })}
+        {para
+          .filter((r) => !/membro/i.test(r.verbo))
+          .map((r) => {
+            const f = nome(r.deId);
+            return f ? (
+              <div key={r.id} className="diario-relacao diario-relacao--entrada">
+                <button type="button" className={`${classe(f)} diario-mencao-botao`} onClick={() => aoAbrirFicha(f.id)}>
+                  {f.nome}
+                </button>
+                <span>{r.verbo} esta página</span>
+              </div>
+            ) : null;
+          })}
+      </div>
+      {podeEditar && (
+        <div className="diario-relacao-nova">
+          <input list="diario-verbos" type="text" value={verbo} onChange={(e) => setVerbo(e.target.value)} placeholder="aliado de, membro de…" aria-label="Relação" maxLength={40} />
+          <datalist id="diario-verbos">
+            {VERBOS.map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+          <select value={alvo} onChange={(e) => setAlvo(e.target.value)} aria-label="Com quem">
+            <option value="">com…</option>
+            {fichas
+              .filter((f) => f.id !== ficha.id)
+              .map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.nome}
+                </option>
+              ))}
+          </select>
+          <button type="button" className="diario-btn" onClick={() => void adicionar()} disabled={salvando || !verbo.trim() || !alvo}>
+            Adicionar
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function FichaDetalhe({
   mesaId,
   meuId,
@@ -482,6 +742,7 @@ export function FichaDetalhe({
   sessoes,
   fichas,
   mencoes,
+  relacoes,
   contexto,
   nomeAutor,
   mostrarAutor,
@@ -501,6 +762,7 @@ export function FichaDetalhe({
   sessoes: SessaoDiarioDTO[];
   fichas: FichaDiarioDTO[];
   mencoes: MencaoDiarioDTO[];
+  relacoes: RelacaoDTO[];
   contexto: ContextoRico;
   nomeAutor: (id: string) => string;
   mostrarAutor: boolean;
@@ -596,14 +858,7 @@ export function FichaDetalhe({
   return (
     <>
       <div className="diario-ficha-cab">
-        {ficha.retratoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className="diario-retrato" src={ficha.retratoUrl} alt="" />
-        ) : (
-          <div className="diario-retrato">
-            <i className={`fas ${iconeDoTipo(ficha.tipo)}`} />
-          </div>
-        )}
+        <GaleriaRetratos mesaId={mesaId} meuId={meuId} ficha={ficha} podeEditar={!somenteLeitura && (souAutorOuEditor(ficha, meuId, ehNarrador))} aoAtualizar={aoAtualizar} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <h2 style={{ marginBottom: 2 }}>{ficha.nome}</h2>
           <div className="diario-chips">
@@ -669,6 +924,16 @@ export function FichaDetalhe({
       )}
 
       {ficha.resumo ? <DescricaoRica texto={ficha.resumo} contexto={contexto} /> : <p className="diario-aviso">Sem resumo ainda.</p>}
+
+      <RelacoesFicha
+        mesaId={mesaId}
+        ficha={ficha}
+        fichas={fichas}
+        relacoes={relacoes}
+        podeEditar={!somenteLeitura && souAutorOuEditor(ficha, meuId, ehNarrador)}
+        aoAbrirFicha={aoAbrirFicha}
+        aoAtualizar={aoAtualizar}
+      />
 
       {galeria.length > 0 && (
         <>
@@ -739,6 +1004,7 @@ export function FichaForm({
   meuId,
   inicial,
   refs,
+  cfg,
   contexto,
   aoFechar,
   aoSalvar,
@@ -747,6 +1013,7 @@ export function FichaForm({
   meuId: string;
   inicial: FichaDiarioDTO | null;
   refs: OpcaoRef[];
+  cfg: ConfigMencao;
   contexto: ContextoRico;
   aoFechar: () => void;
   aoSalvar: (id: string | null) => void;
@@ -754,7 +1021,6 @@ export function FichaForm({
   const [tipo, setTipo] = useState<TipoFichaDiario>(inicial?.tipo ?? "personagem");
   const [nome, setNome] = useState(inicial?.nome ?? "");
   const [apelidos, setApelidos] = useState(inicial?.apelidos.join(", ") ?? "");
-  const [retrato, setRetrato] = useState<string | null>(inicial?.retratoUrl ?? null);
   const [campos, setCampos] = useState<CamposFicha>(inicial?.campos ?? {});
   const [resumo, setResumo] = useState(inicial?.resumo ?? "");
   const [salvando, setSalvando] = useState(false);
@@ -768,7 +1034,7 @@ export function FichaForm({
         tipo,
         nome,
         apelidos: apelidos.split(",").map((a) => a.trim()).filter(Boolean),
-        retratoUrl: retrato,
+        retratoUrl: inicial?.retratoUrl ?? null,
         campos,
         resumo,
       };
@@ -842,7 +1108,7 @@ export function FichaForm({
           />
         </label>
       </div>
-      <RetratoUpload valor={retrato} onChange={setRetrato} />
+      <p className="diario-aviso">Os retratos (vários, com legenda) ficam na página da pessoa ou do lugar.</p>
       <label>
         Resumo — o que se sabe
         <EditorComImagem
@@ -851,6 +1117,7 @@ export function FichaForm({
           valor={resumo}
           onChange={setResumo}
           refs={refsSemEla}
+          cfg={cfg}
           contexto={contexto}
           placeholder="O que você sabe sobre isso? (@ menciona, cole imagens)"
         />

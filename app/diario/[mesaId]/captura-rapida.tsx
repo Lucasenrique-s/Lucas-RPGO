@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { exigir } from "@/lib/acoes";
 import { extrairAtalhos } from "@/lib/diario-tipos";
 import type { ContextoRico, OpcaoRef } from "@/components/descricao-rica/atomos";
+import type { ConfigMencao } from "@/lib/diario-mencao";
 import { EditorComImagem, avisar } from "./diario-partes";
 import { criarNotaDiario } from "./actions";
 
@@ -38,6 +39,7 @@ export function CapturaRapida({
   mesaId,
   meuId,
   refs,
+  cfg,
   contexto,
   rotuloSessao,
   aberta,
@@ -50,6 +52,7 @@ export function CapturaRapida({
   mesaId: string;
   meuId: string;
   refs: OpcaoRef[];
+  cfg: ConfigMencao;
   contexto: ContextoRico;
   // Onde a anotação vai cair: a sessão ao vivo ou "Entre sessões".
   rotuloSessao: string;
@@ -140,6 +143,7 @@ export function CapturaRapida({
           valor={texto}
           onChange={mudar}
           refs={refs}
+          cfg={cfg}
           contexto={contexto}
           placeholder="Digite e use Ctrl+Enter para salvar. @ menciona, #tag, “! ” no começo marca importante."
         />

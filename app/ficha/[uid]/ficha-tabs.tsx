@@ -439,6 +439,8 @@ export function FichaTabs({
             notas={diario.notas}
             sessoes={diario.sessoes}
             mencoes={diario.mencoes}
+            relacoes={diario.relacoes}
+            marcos={diario.marcos}
             autores={diario.autores}
             calendario={diario.calendario}
             escopoInicial="meu"

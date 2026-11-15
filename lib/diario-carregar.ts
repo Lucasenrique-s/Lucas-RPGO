@@ -8,11 +8,14 @@ import type {
   CalendarioDiarioDTO,
   CamposFicha,
   FichaDiarioDTO,
+  MarcoDiarioDTO,
   MencaoDiarioDTO,
   NotaDiarioDTO,
+  RelacaoDTO,
   SessaoDiarioDTO,
   TipoFichaDiario,
 } from "@/lib/diario-tipos";
+import { normalizarTipoFicha } from "@/lib/diario-tipos";
 
 export type DadosDiario = {
   mesaNome: string;
@@ -22,6 +25,8 @@ export type DadosDiario = {
   notas: NotaDiarioDTO[];
   sessoes: SessaoDiarioDTO[];
   mencoes: MencaoDiarioDTO[];
+  relacoes: RelacaoDTO[];
+  marcos: MarcoDiarioDTO[];
   autores: Record<string, string>;
   calendario: CalendarioDiarioDTO | null;
   // Narrador vendo o diário de um jogador: só leitura.
@@ -53,7 +58,7 @@ export async function carregarDiario(
   const filtro = filtroLeituraDiario(acesso);
   const [mesa, fichas, notas, sessoes, membros, cal] = await Promise.all([
     prisma.mesa.findUniqueOrThrow({ where: { id: mesaId }, select: { nome: true, userId: true } }),
-    prisma.diarioFicha.findMany({ where: { mesaId, ...filtro }, orderBy: { criadaEm: "asc" } }),
+    prisma.diarioFicha.findMany({ where: { mesaId, ...filtro }, orderBy: { criadaEm: "asc" }, include: { retratos: { orderBy: { ordem: "asc" } } } }),
     prisma.diarioNota.findMany({ where: { mesaId, ...filtro }, orderBy: { criadaEm: "desc" } }),
     prisma.sessao.findMany({ where: { mesaId }, orderBy: { iniciadaEm: "desc" } }),
     prisma.personagem.findMany({
@@ -67,6 +72,12 @@ export async function carregarDiario(
   // Backlinks: só de origens que esta pessoa já pode ler (fichas e notas acima).
   const origens = [...fichas.map((f) => f.id), ...notas.map((n) => n.id)];
   const mencoes = await prisma.diarioMencao.findMany({ where: { origemId: { in: origens } } });
+  // Relações só entre páginas que esta pessoa lê; marcos são do próprio jogador (o narrador lê todos).
+  const idsFichas = fichas.map((f) => f.id);
+  const [relacoes, marcos] = await Promise.all([
+    prisma.diarioRelacao.findMany({ where: { mesaId, deId: { in: idsFichas }, paraId: { in: idsFichas } }, orderBy: { criadaEm: "asc" } }),
+    prisma.diarioMarco.findMany({ where: { mesaId, ...(acesso.narrador ? {} : { autorId: acesso.userId }) }, orderBy: { nome: "asc" } }),
+  ]);
 
   // Quem escreveu: nome do personagem do jogador; o narrador aparece como tal.
   const autores: Record<string, string> = {};
@@ -80,10 +91,11 @@ export async function carregarDiario(
     fichas: fichas.map((f) => ({
       id: f.id,
       autorId: f.autorId,
-      tipo: f.tipo as TipoFichaDiario,
+      tipo: normalizarTipoFicha(f.tipo),
       nome: f.nome,
       apelidos: f.apelidos,
       retratoUrl: f.retratoUrl,
+      retratos: f.retratos.map((r) => ({ id: r.id, url: r.url, legenda: r.legenda })),
       campos: (f.campos ?? {}) as CamposFicha,
       resumo: f.resumo,
       visibilidade: f.visibilidade,
@@ -117,6 +129,8 @@ export async function carregarDiario(
       alvoTipo: m.alvoTipo as MencaoDiarioDTO["alvoTipo"],
       alvoId: m.alvoId,
     })),
+    relacoes: relacoes.map((r) => ({ id: r.id, deId: r.deId, verbo: r.verbo, paraId: r.paraId })),
+    marcos: marcos.map((m) => ({ id: m.id, nome: m.nome })),
     autores,
     somenteLeitura,
     calendario: cal
@@ -131,7 +145,8 @@ export async function carregarDiario(
 
 export type RefsDiario = {
   meuId: string;
-  fichas: { id: string; nome: string; tipo: TipoFichaDiario }[];
+  fichas: { id: string; nome: string; tipo: TipoFichaDiario; apelidos: string[] }[];
+  marcos: MarcoDiarioDTO[];
   sessoes: SessaoDiarioDTO[];
   calendario: CalendarioDiarioDTO | null;
 };
@@ -142,18 +157,20 @@ export async function carregarRefsDiario(mesaId: string, userId: string): Promis
   const acesso = await acessoAoDiario(mesaId, userId);
   if (!acesso) return null;
   const filtro = filtroLeituraDiario(acesso);
-  const [fichas, sessoes, cal] = await Promise.all([
+  const [fichas, sessoes, cal, marcos] = await Promise.all([
     prisma.diarioFicha.findMany({
       where: { mesaId, ...filtro },
-      select: { id: true, nome: true, tipo: true },
+      select: { id: true, nome: true, tipo: true, apelidos: true },
       orderBy: { criadaEm: "asc" },
     }),
     prisma.sessao.findMany({ where: { mesaId }, orderBy: { iniciadaEm: "desc" }, take: 30 }),
     carregarCalendario(mesaId, { isNarrador: acesso.narrador }),
+    prisma.diarioMarco.findMany({ where: { mesaId, ...(acesso.narrador ? {} : { autorId: acesso.userId }) }, orderBy: { nome: "asc" } }),
   ]);
   return {
     meuId: acesso.userId,
-    fichas: fichas.map((f) => ({ id: f.id, nome: f.nome, tipo: f.tipo as TipoFichaDiario })),
+    fichas: fichas.map((f) => ({ id: f.id, nome: f.nome, tipo: normalizarTipoFicha(f.tipo), apelidos: f.apelidos })),
+    marcos: marcos.map((m) => ({ id: m.id, nome: m.nome })),
     sessoes: sessoes.map((s) => ({
       id: s.id,
       numero: s.numero,

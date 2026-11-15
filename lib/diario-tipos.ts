@@ -2,14 +2,14 @@
 
 import { dataParaDias, type CalendarioConfig } from "@/lib/calendario/engine";
 
-export type TipoFichaDiario = "personagem" | "local" | "item" | "faccao" | "pista";
+export type TipoFichaDiario = "personagem" | "local" | "item" | "grupo" | "pista";
 
 // `cor`: a faixa do card na linha do tempo (tons médios: valem no claro e no escuro).
 export const TIPOS_FICHA: { id: TipoFichaDiario; nome: string; plural: string; icone: string; cor: string }[] = [
   { id: "personagem", nome: "Personagem", plural: "Personagens", icone: "fa-user", cor: "#7f77dd" },
   { id: "local", nome: "Local", plural: "Locais", icone: "fa-location-dot", cor: "#1d9e75" },
   { id: "item", nome: "Item", plural: "Itens", icone: "fa-box", cor: "#ba7517" },
-  { id: "faccao", nome: "Facção", plural: "Facções", icone: "fa-flag", cor: "#d85a30" },
+  { id: "grupo", nome: "Grupo", plural: "Grupos", icone: "fa-users", cor: "#d85a30" },
   { id: "pista", nome: "Pista", plural: "Pistas", icone: "fa-magnifying-glass", cor: "#d4537e" },
 ];
 
@@ -29,9 +29,22 @@ export const LIMITES_DIARIO = {
   titulo: 80,
 } as const;
 
+// Linhas antigas guardavam "faccao": hoje é "grupo".
+export const normalizarTipoFicha = (t: string): TipoFichaDiario =>
+  t === "faccao" ? "grupo" : TIPOS_FICHA.some((x) => x.id === t) ? (t as TipoFichaDiario) : "personagem";
+
 export const ehTipoFicha = (t: unknown): t is TipoFichaDiario => TIPOS_FICHA.some((x) => x.id === t);
 
 // Dados que a tela recebe (datas já em ISO: vão pelo limite servidor → cliente).
+// Um retrato da página de uma entidade (vários, o primeiro é o principal).
+export type RetratoDTO = { id: string; url: string; legenda: string };
+
+// "capitão de", "membro de"… de uma entidade pra outra.
+export type RelacaoDTO = { id: string; deId: string; verbo: string; paraId: string };
+
+// Momento que só a pessoa nomeou ([[Festival da Lua]] sem evento no calendário).
+export type MarcoDiarioDTO = { id: string; nome: string };
+
 export type FichaDiarioDTO = {
   id: string;
   autorId: string;
@@ -39,6 +52,7 @@ export type FichaDiarioDTO = {
   nome: string;
   apelidos: string[];
   retratoUrl: string | null;
+  retratos: RetratoDTO[];
   campos: CamposFicha;
   resumo: string;
   visibilidade: string;

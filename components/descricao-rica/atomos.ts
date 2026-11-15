@@ -11,9 +11,17 @@ import type { Duracao } from "@/lib/duracao";
 import type { CalendarioConfig } from "@/lib/calendario/engine";
 import { rotuloDuracao } from "@/lib/descricao-gerada";
 import { ATRIBUTOS_RICOS, type Inline, type TipoRef } from "@/lib/descricao-rica";
+import { classeDaMencao, ehIdNovo } from "@/lib/diario-mencao";
 
 // O que o editor e a visualização sabem de fora. Tudo opcional.
-export type InfoRef = { titulo?: string; texto?: string; icone?: string; selo?: string };
+export type InfoRef = {
+  titulo?: string;
+  texto?: string;
+  icone?: string;
+  selo?: string;
+  // Classe do destaque da menção (cor por tipo): `desc-mencao--local`…
+  classe?: string;
+};
 export type InfoCondicao = { nome: string; descricao?: string; cor?: string };
 export type OpcaoRef = { tipo: TipoRef; id: string; nome: string };
 
@@ -78,6 +86,7 @@ export const ICONE_REF: Record<TipoRef, string> = {
   sessao: "fa-book-open",
   dia: "fa-calendar-day",
   evento: "fa-calendar-check",
+  marco: "fa-flag",
 };
 export const ROTULO_REF: Record<TipoRef, string> = {
   acao: "Ação",
@@ -88,6 +97,7 @@ export const ROTULO_REF: Record<TipoRef, string> = {
   sessao: "Sessão",
   dia: "Data",
   evento: "Evento",
+  marco: "Marco",
 };
 export const ICONE_IMAGEM = "fa-image";
 export const ICONE_COND = "fa-triangle-exclamation";
@@ -311,4 +321,19 @@ export function aparenciaDoAtomo(
     case "imagem":
       return { icone: ICONE_IMAGEM, rotulo: no.legenda || "imagem", classe: "desc-chip--imagem" };
   }
+}
+
+// Menções do diário (página, sessão, data, evento, marco): palavra destacada, sem chip.
+export const TIPOS_MENCAO = new Set<TipoRef>(["ficha", "sessao", "dia", "evento", "marco"]);
+
+export function aparenciaMencao(
+  no: Extract<Inline, { t: "ref" }>,
+  ctx?: ContextoRico,
+): { classe: string; novo: boolean; apagada: boolean; info?: InfoRef } {
+  const info = ctx?.refs?.[`${no.tipo}:${no.id}`];
+  const novo = ehIdNovo(no.id);
+  // Data não tem cadastro; o resto só some se a pessoa apagou a página.
+  const apagada = no.tipo !== "dia" && !novo && !!ctx?.refs && !info;
+  const classe = ["desc-mencao", info?.classe ?? classeDaMencao(no.tipo), novo || apagada ? "desc-mencao--vazia" : ""].filter(Boolean).join(" ");
+  return { classe, novo, apagada, info };
 }

@@ -3,7 +3,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
-import { rotuloDia, rotuloSessao, type CalendarioDiarioDTO, type SessaoDiarioDTO, type TipoFichaDiario } from "@/lib/diario-tipos";
+import { rotuloSessao, type CalendarioDiarioDTO, type MarcoDiarioDTO, type SessaoDiarioDTO, type TipoFichaDiario } from "@/lib/diario-tipos";
+import { montarConfigMencao, montarInfoMencao } from "@/lib/diario-mencao";
 import type { ContextoRico, OpcaoRef } from "@/components/descricao-rica/atomos";
 import { CapturaRapida } from "./captura-rapida";
 import { iconeDoTipo } from "./diario-partes";
@@ -15,12 +16,14 @@ export function CapturaGlobal({
   mesaId,
   meuId,
   fichas,
+  marcos,
   sessoes,
   calendario,
 }: {
   mesaId: string;
   meuId: string;
-  fichas: { id: string; nome: string; tipo: TipoFichaDiario }[];
+  fichas: { id: string; nome: string; tipo: TipoFichaDiario; apelidos: string[] }[];
+  marcos: MarcoDiarioDTO[];
   sessoes: SessaoDiarioDTO[];
   calendario: CalendarioDiarioDTO | null;
 }) {
@@ -38,23 +41,14 @@ export function CapturaGlobal({
     [fichas, sessoes, calendario],
   );
 
-  const contexto = useMemo<ContextoRico>(() => {
-    const info: NonNullable<ContextoRico["refs"]> = {};
-    for (const f of fichas) info[`ficha:${f.id}`] = { titulo: f.nome, icone: iconeDoTipo(f.tipo), selo: "Ficha do diário" };
-    for (const s of sessoes) info[`sessao:${s.id}`] = { titulo: rotuloSessao(s), icone: "fa-book-open", selo: "Sessão" };
-    for (const e of calendario?.eventos ?? []) {
-      info[`evento:${e.id}`] = {
-        titulo: e.titulo,
-        icone: "fa-calendar-check",
-        selo: "Evento do calendário",
-        texto: rotuloDia(e.dataDias, calendario!.config),
-      };
-    }
-    return {
-      refs: info,
+  const cfg = useMemo(() => montarConfigMencao(fichas, sessoes, calendario), [fichas, sessoes, calendario]);
+  const contexto = useMemo<ContextoRico>(
+    () => ({
+      refs: montarInfoMencao(fichas, sessoes, calendario, marcos),
       ...(calendario ? { calendario: { config: calendario.config, hoje: calendario.hoje } } : {}),
-    };
-  }, [fichas, sessoes, calendario]);
+    }),
+    [fichas, sessoes, calendario, marcos],
+  );
 
   const ativa = sessoes.find((s) => s.ativa);
 
@@ -63,6 +57,7 @@ export function CapturaGlobal({
       mesaId={mesaId}
       meuId={meuId}
       refs={refs}
+      cfg={cfg}
       contexto={contexto}
       rotuloSessao={ativa ? rotuloSessao(ativa) : "Entre sessões"}
       aberta={aberta}

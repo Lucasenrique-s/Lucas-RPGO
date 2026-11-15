@@ -674,3 +674,132 @@
   font-weight: 600;
   line-height: 1.25;
 }
+
+/* Retratos (vários) e relações da página de uma entidade */
+.diario-retratos {
+  width: 150px;
+  flex: none;
+}
+.diario-polaroid {
+  background: #fff;
+  padding: 6px;
+  border: 1px solid #cfcabd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.diario-polaroid img,
+.diario-polaroid-vazio {
+  display: block;
+  width: 100%;
+  height: 126px;
+  object-fit: cover;
+}
+.diario-polaroid-vazio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface, #ddd);
+  color: var(--text-sec);
+  font-size: 2rem;
+}
+.diario-legenda {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--border);
+  color: var(--text-main);
+  padding: 2px 0;
+}
+.diario-legenda--texto {
+  border: 0;
+  color: var(--text-sec);
+}
+.diario-miniaturas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.diario-miniaturas button,
+.diario-miniatura-mais {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  background: transparent;
+}
+.diario-miniaturas button.on {
+  border-color: var(--primary);
+}
+.diario-miniaturas img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.diario-miniatura-mais {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed var(--border);
+  color: var(--text-sec);
+  font-size: 1.1rem;
+}
+.diario-retrato-acoes {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.diario-link {
+  background: transparent;
+  border: 0;
+  color: var(--text-sec);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.diario-relacoes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.diario-relacao {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 0.9rem;
+}
+.diario-relacao > span:first-child {
+  color: var(--text-sec);
+  min-width: 96px;
+}
+.diario-relacao--entrada span {
+  color: var(--text-sec);
+}
+.diario-mencao-botao {
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.diario-relacao-nova {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.diario-relacao-nova input,
+.diario-relacao-nova select {
+  background: var(--bg-surface, var(--bg-card));
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 0.85rem;
+}

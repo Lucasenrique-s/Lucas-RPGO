@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { imagensDeRica, textoPuroRico, type TipoRef } from "@/lib/descricao-rica";
 import {
@@ -9,12 +9,15 @@ import {
   rotuloDia,
   type CalendarioDiarioDTO,
   type FichaDiarioDTO,
+  type MarcoDiarioDTO,
   type MencaoDiarioDTO,
+  type RelacaoDTO,
   type NotaDiarioDTO,
   type SessaoDiarioDTO,
   type TipoFichaDiario,
 } from "@/lib/diario-tipos";
 import { montarLinha, type ItemLinha, type SecaoLinha } from "@/lib/diario-linha";
+import { montarConfigMencao, montarInfoMencao } from "@/lib/diario-mencao";
 import type { ContextoRico, OpcaoRef } from "@/components/descricao-rica/atomos";
 import {
   FichaDetalhe,
@@ -41,6 +44,8 @@ type Props = {
   notas: NotaDiarioDTO[];
   sessoes: SessaoDiarioDTO[];
   mencoes: MencaoDiarioDTO[];
+  relacoes: RelacaoDTO[];
+  marcos: MarcoDiarioDTO[];
   autores: Record<string, string>;
   calendario: CalendarioDiarioDTO | null;
   // Escopo com que a tela abre (a aba da ficha abre no "Meu diário").
@@ -81,6 +86,8 @@ export function DiarioView({
   notas,
   sessoes,
   mencoes,
+  relacoes,
+  marcos,
   autores,
   calendario,
   escopoInicial = "tudo",
@@ -94,13 +101,20 @@ export function DiarioView({
   const [filtroAutor, setFiltroAutor] = useState("todos");
   const [escopo, setEscopo] = useState<Escopo>(escopoInicial);
   const [gaveta, setGaveta] = useState<Gaveta | null>(null);
+  // No caderno, a página da entidade abre na folha da direita, não na gaveta.
+  const [folhaId, setFolhaId] = useState<string | null>(null);
   const [novoAberto, setNovoAberto] = useState(false);
   // Como ler o diário: a linha do tempo ou o caderno (lembrado no aparelho).
   const [modo, setModoEstado] = useState<"linha" | "caderno">("linha");
+  const modoRef = useRef(modo);
+  useEffect(() => {
+    modoRef.current = modo;
+  }, [modo]);
   // Cada clique no botão de modo, dentro do caderno, pede pra ele descer da tela.
   const [pedidoSair, setPedidoSair] = useState(0);
   const setModo = useCallback((m: "linha" | "caderno") => {
     setModoEstado(m);
+    setFolhaId(null);
     try {
       window.localStorage.setItem("rpgo:diario:modo", m);
     } catch {
@@ -110,7 +124,8 @@ export function DiarioView({
   useEffect(() => {
     const t = window.setTimeout(() => {
       try {
-        if (window.localStorage.getItem("rpgo:diario:modo") === "caderno") setModoEstado("caderno");
+        // O diário pessoal abre como caderno; a linha do tempo só quem a escolheu.
+        if (window.localStorage.getItem("rpgo:diario:modo") !== "linha") setModoEstado("caderno");
       } catch {
         /* sem storage: fica na linha do tempo */
       }
@@ -183,7 +198,8 @@ export function DiarioView({
 
   const abrirRef = useCallback((tipo: TipoRef, id: string) => {
     if (tipo === "ficha") {
-      setGaveta({ m: "ficha", id });
+      if (modoRef.current === "caderno") setFolhaId(id);
+      else setGaveta({ m: "ficha", id });
     } else if (tipo === "dia" || tipo === "evento") {
       // O calendário da mesa tem página própria.
       router.push(`/calendario/${mesaId}`);
@@ -194,24 +210,16 @@ export function DiarioView({
     }
   }, [router, mesaId]);
 
-  const contexto = useMemo<ContextoRico>(() => {
-    const refs: NonNullable<ContextoRico["refs"]> = {};
-    for (const f of fichas) refs[`ficha:${f.id}`] = { titulo: f.nome, icone: iconeDoTipo(f.tipo), selo: "Ficha do diário" };
-    for (const s of sessoes) refs[`sessao:${s.id}`] = { titulo: rotuloSessao(s), icone: "fa-book-open", selo: "Sessão" };
-    for (const e of calendario?.eventos ?? []) {
-      refs[`evento:${e.id}`] = {
-        titulo: e.titulo,
-        icone: "fa-calendar-check",
-        selo: "Evento do calendário",
-        texto: rotuloDia(e.dataDias, calendario!.config),
-      };
-    }
-    return {
-      refs,
+  // O que o `@` e o `[[ ]]` oferecem, e como cada menção é destacada no texto.
+  const cfg = useMemo(() => montarConfigMencao(fichas, sessoes, calendario), [fichas, sessoes, calendario]);
+  const contexto = useMemo<ContextoRico>(
+    () => ({
+      refs: montarInfoMencao(fichas, sessoes, calendario, marcos),
       aoAbrirRef: abrirRef,
       ...(calendario ? { calendario: { config: calendario.config, hoje: calendario.hoje } } : {}),
-    };
-  }, [fichas, sessoes, calendario, abrirRef]);
+    }),
+    [fichas, sessoes, calendario, marcos, abrirRef],
+  );
 
   // Esc fecha a gaveta.
   useEffect(() => {
@@ -369,8 +377,14 @@ export function DiarioView({
           calendario={calendario}
           contexto={contexto}
           refs={refsOpcoes}
+          cfg={cfg}
+          mencoes={mencoes}
+          relacoes={relacoes}
+          folhaId={folhaId}
           somenteLeitura={somenteLeitura}
-          aoAbrirFicha={(id) => setGaveta({ m: "ficha", id })}
+          aoAbrirFicha={setFolhaId}
+          aoFecharFolha={() => setFolhaId(null)}
+          aoAbrirCompleta={(id) => setGaveta({ m: "ficha", id })}
           aoAbrirNota={(id) => setGaveta({ m: "nota", id })}
           aoSalvou={atualizar}
           pedidoSair={pedidoSair}
@@ -473,6 +487,7 @@ export function DiarioView({
         mesaId={mesaId}
         meuId={meuId}
         refs={refsOpcoes}
+        cfg={cfg}
         contexto={contexto}
         rotuloSessao={sessaoAtiva ? rotuloSessao(sessaoAtiva) : "Entre sessões"}
         aberta={capturando}
@@ -502,6 +517,7 @@ export function DiarioView({
                 sessoes={sessoes}
                 fichas={fichas}
                 mencoes={mencoes}
+                relacoes={relacoes}
                 contexto={contexto}
                 nomeAutor={nomeAutor}
                 mostrarAutor={ehNarrador}
@@ -549,6 +565,7 @@ export function DiarioView({
                 meuId={meuId}
                 inicial={fichaDe(gaveta.id)}
                 refs={refsOpcoes}
+                cfg={cfg}
                 contexto={contexto}
                 aoFechar={() => setGaveta({ m: "ficha", id: gaveta.id })}
                 aoSalvar={() => {
@@ -563,6 +580,7 @@ export function DiarioView({
                 meuId={meuId}
                 inicial={null}
                 refs={refsOpcoes}
+                cfg={cfg}
                 contexto={contexto}
                 aoFechar={() => setGaveta(null)}
                 aoSalvar={(id) => {
@@ -580,6 +598,7 @@ export function DiarioView({
                 sessaoPadrao={gaveta.m === "novaNota" ? gaveta.sessaoId : null}
                 sessoes={sessoes}
                 refs={refsOpcoes}
+                cfg={cfg}
                 contexto={contexto}
                 aoFechar={() => setGaveta(null)}
                 aoSalvar={() => {
@@ -603,9 +622,9 @@ function CardFicha({ f, ativo, autor, aoAbrir }: { f: FichaDiarioDTO; ativo: boo
   return (
     <button type="button" className={`diario-card${ativo ? " diario-card--ativo" : ""}`} onClick={aoAbrir}>
       <span className="diario-card-topo" style={{ background: tipo?.cor }}>
-        {f.retratoUrl ? (
+        {f.retratos[0]?.url || f.retratoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={f.retratoUrl} alt="" />
+          <img src={f.retratos[0]?.url ?? f.retratoUrl ?? ""} alt="" />
         ) : (
           <i className={`fas ${iconeDoTipo(f.tipo)}`} />
         )}

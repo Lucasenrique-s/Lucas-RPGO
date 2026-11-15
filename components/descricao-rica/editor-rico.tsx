@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { parseFormulaDados } from "@/lib/dice";
 import { CATALOGO_PADRAO, type TipoDanoCatalogo } from "@/lib/tipos-dano";
 import {
@@ -13,6 +14,19 @@ import {
   type Bloco,
 } from "@/lib/descricao-rica";
 import { rotuloDuracao } from "@/lib/descricao-gerada";
+import {
+  acharGatilho,
+  itensDeEntidades,
+  itensDeTempo,
+  refDeEntidadeNova,
+  refDeMarcoNovo,
+  sem,
+  type ConfigMencao,
+  type Gatilho,
+  type ItemMencao,
+  type RefMencao,
+} from "@/lib/diario-mencao";
+import { TIPOS_FICHA } from "@/lib/diario-tipos";
 import {
   EFEITOS_CATALOGO,
   ICONE_COND,
@@ -73,6 +87,20 @@ type SugestaoAberta = {
   acima: boolean;
 };
 
+// Menu da menção sendo digitada (`@Bar…` ou `[[12/0…`): o trecho [inicio, fim) do nó de
+// texto vira o átomo escolhido.
+type MenuMencao = {
+  g: Gatilho;
+  itens: ItemMencao[];
+  ativo: number;
+  no: Text;
+  inicio: number;
+  fim: number;
+  x: number;
+  y: number;
+  acima: boolean;
+};
+
 const CHAVE_SUGESTOES = "rpgo:descricao:sugestoes";
 
 // Recusar uma sugestão vale pra palavra que começa igual (3 letras): senão ela
@@ -98,6 +126,7 @@ export function EditorRico({
   automatica,
   enviarImagem,
   criarFicha,
+  mencoes,
   placeholder = "Descreva o efeito… (@ insere, / blocos)",
 }: {
   valor: string;
@@ -116,6 +145,9 @@ export function EditorRico({
     tipos: { id: string; nome: string; icone: string }[];
     criar: (nome: string, tipo: string) => Promise<OpcaoRef>;
   };
+  // Diário: liga o `@` (páginas) e o `[[ ]]` (tempo) como menus inline; as menções
+  // viram palavra destacada, sem chip, e o `@` deixa de abrir o painel de ações.
+  mencoes?: ConfigMencao;
   placeholder?: string;
 }) {
   const raiz = useRef<HTMLDivElement>(null);
@@ -129,6 +161,9 @@ export function EditorRico({
   const [podeDesfazer, setPodeDesfazer] = useState({ desfazer: false, refazer: false });
   const [edicao, setEdicao] = useState<{ el: HTMLElement; no: Atomo } | null>(null);
   const [sug, setSug] = useState<SugestaoAberta | null>(null);
+  const [menu, setMenu] = useState<MenuMencao | null>(null);
+  // Esc fecha o menu daquele `@` até o cursor sair da menção.
+  const menuFechadoEm = useRef<{ no: Text; inicio: number } | null>(null);
   const [sugestoesLigadas, setSugestoesLigadas] = useState(true);
   // Palavras que a pessoa já recusou: não voltam a ser sugeridas neste editor.
   const dispensadas = useRef<Set<string>>(new Set());
@@ -382,6 +417,7 @@ export function EditorRico({
       const sel = window.getSelection();
       // O cursor saiu da palavra que tinha sugestão: a caixa some.
       setSug((s) => (s && sel && sel.anchorNode === s.no && sel.anchorOffset === s.fim ? s : null));
+      setMenu((m) => (m && sel && sel.anchorNode === m.no && sel.anchorOffset === m.fim ? m : null));
       if (!el || !sel || !sel.rangeCount || !el.contains(sel.anchorNode)) return;
       const linha = linhaDoNo(el, sel.anchorNode);
       setEstado({
@@ -399,6 +435,7 @@ export function EditorRico({
 
   // Olha o texto antes do cursor (só em texto comum, nunca dentro de chip).
   function avaliarSugestoes() {
+    if (mencoes) return avaliarMencao();
     const el = campo.current;
     const sel = window.getSelection();
     if (!sugestoesLigadas || !el || !sel || !sel.rangeCount || !sel.isCollapsed) return setSug(null);
@@ -432,6 +469,103 @@ export function EditorRico({
       y: acima ? rect.top - 6 : rect.bottom + 6,
       acima,
     });
+  }
+
+  /* ─── Menções do diário: `@` e `[[ ]]` ──────────────────── */
+
+  // Põe a menção no lugar do trecho [inicio, fim) do nó de texto.
+  function colocarRef(no: Text, inicio: number, fim: number, ref: RefMencao) {
+    if (!no.isConnected || no.data.length < fim) return setMenu(null);
+    const atomo = { t: "ref", tipo: ref.tipo, id: ref.id, nome: ref.nome } as Atomo;
+    const { resto, poseEspaco } = substituirPorChip(no, inicio, fim, atomo, 0);
+    cursorEm(resto, poseEspaco ? 1 : 0);
+    setMenu(null);
+    confirmar();
+  }
+
+  // Digitou o fechamento (`[[Sessão 12]]`, `@[Fulano Misterioso]`)? Já resolve sozinho.
+  function fecharDigitado(no: Text, antes: string, fim: number): boolean {
+    if (!mencoes) return false;
+    const mTempo = /\[\[([^\]\n]{1,40})\]\]$/.exec(antes);
+    if (mTempo) {
+      const q = mTempo[1];
+      const itens = itensDeTempo(q, mencoes);
+      const exato = itens.find((i) => i.ref.tipo !== "marco" && (sem(i.rotulo) === sem(q) || sem(i.ref.nome) === sem(q)));
+      colocarRef(no, fim - mTempo[0].length, fim, exato?.ref ?? refDeMarcoNovo(q.trim()));
+      return true;
+    }
+    const mEnt = /(?:^|[^\p{L}\p{N}_])@\[([^\]\n]{1,40})\]$/u.exec(antes);
+    if (mEnt) {
+      const q = mEnt[1].trim();
+      const achou = itensDeEntidades(q, mencoes.entidades).find((i) => sem(i.rotulo) === sem(q) || sem(i.ref.nome) === sem(q));
+      colocarRef(no, fim - (mEnt[1].length + 3), fim, achou?.ref ?? refDeEntidadeNova("personagem", q));
+      return true;
+    }
+    return false;
+  }
+
+  function avaliarMencao() {
+    const el = campo.current;
+    const sel = window.getSelection();
+    if (!mencoes || !el || !sel || !sel.rangeCount || !sel.isCollapsed) return setMenu(null);
+    const no = sel.anchorNode;
+    if (!no || no.nodeType !== Node.TEXT_NODE || !el.contains(no)) return setMenu(null);
+    if ((no.parentElement as HTMLElement | null)?.closest("[data-no],.desc-marcador")) return setMenu(null);
+    const antes = (no.textContent ?? "").slice(0, sel.anchorOffset);
+    if (fecharDigitado(no as Text, antes, sel.anchorOffset)) return;
+    const g = acharGatilho(antes, mencoes.entidades);
+    if (!g) {
+      menuFechadoEm.current = null;
+      return setMenu(null);
+    }
+    const f = menuFechadoEm.current;
+    if (f && f.no === no && f.inicio === g.inicio) return setMenu(null);
+    const itens = g.tipo === "@" ? itensDeEntidades(g.q, mencoes.entidades) : itensDeTempo(g.q, mencoes);
+    const r = sel.getRangeAt(0).cloneRange();
+    let rect: DOMRect | undefined = r.getClientRects()[0];
+    if (!rect || rect.height === 0) rect = (no.parentElement as HTMLElement).getBoundingClientRect();
+    const alturaVisivel = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    const acima = rect.bottom + 260 > alturaVisivel && rect.top > 260;
+    setMenu({
+      g,
+      itens,
+      ativo: 0,
+      no: no as Text,
+      inicio: g.inicio,
+      fim: sel.anchorOffset,
+      x: Math.min(Math.max(rect.left, 8), window.innerWidth - 400),
+      y: acima ? rect.top - 6 : rect.bottom + 6,
+      acima,
+    });
+  }
+
+  // Nome novo que o menu oferece criar (sem página igual já listada).
+  function nomeNovoDoMenu(m: MenuMencao): string | null {
+    const q = m.g.q.trim();
+    if (m.g.tipo !== "@" || !q) return null;
+    if (!m.g.colchete && /\s/.test(q)) return null;
+    return m.itens.some((i) => sem(i.rotulo) === sem(q)) ? null : q;
+  }
+
+  // O espaço que a menção põe depois do chip some quando a próxima tecla é pontuação:
+  // "@Luffy" + "," vira "Luffy," e não "Luffy ,".
+  function pontuacaoAposMencao(data: string): boolean {
+    if (!mencoes || !/^[,.;:!?)]$/.test(data)) return false;
+    const sel = window.getSelection();
+    const no = sel?.anchorNode;
+    if (!sel || !sel.isCollapsed || !no || no.nodeType !== Node.TEXT_NODE || sel.anchorOffset !== 1) return false;
+    const t = no as Text;
+    const antes = t.previousSibling as HTMLElement | null;
+    if (t.data[0] !== " " || !antes || !antes.classList?.contains("desc-mencao")) return false;
+    t.deleteData(0, 1);
+    t.insertData(0, data);
+    cursorEm(t, 1);
+    confirmar();
+    return true;
+  }
+
+  function aceitarMencao(ref: RefMencao) {
+    if (menu) colocarRef(menu.no, menu.inicio, menu.fim, ref);
   }
 
   function aceitarSugestao(s: Sugestao) {
@@ -906,6 +1040,28 @@ export function EditorRico({
   function teclas(e: React.KeyboardEvent) {
     const mod = e.ctrlKey || e.metaKey;
     const k = e.key.toLowerCase();
+    // Menu de menção: setas escolhem, Enter/Tab aceitam, Esc fecha (vale pra aquele `@`).
+    if (menu) {
+      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && menu.itens.length > 0) {
+        e.preventDefault();
+        const n = menu.itens.length;
+        return setMenu({ ...menu, ativo: (menu.ativo + (e.key === "ArrowDown" ? 1 : n - 1)) % n });
+      }
+      if ((e.key === "Enter" || e.key === "Tab") && !e.shiftKey && menu.itens[menu.ativo]) {
+        e.preventDefault();
+        return aceitarMencao(menu.itens[menu.ativo].ref);
+      }
+      // Sem página parecida: Enter cria o nome como personagem (outros tipos: clique).
+      const novo = (e.key === "Enter" || e.key === "Tab") && !e.shiftKey ? nomeNovoDoMenu(menu) : null;
+      if (novo) {
+        e.preventDefault();
+        return aceitarMencao(refDeEntidadeNova("personagem", novo));
+      }
+      if (e.key === "Escape") {
+        menuFechadoEm.current = { no: menu.no, inicio: menu.inicio };
+        return setMenu(null);
+      }
+    }
     // Com sugestão aberta: setas escolhem, Tab aplica, Esc ignora a palavra.
     if (sug) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -948,7 +1104,7 @@ export function EditorRico({
     }
     if (e.key === "Backspace" && backspaceNoInicio()) return e.preventDefault();
     if (e.key === "Tab" && tab(e.shiftKey)) return e.preventDefault();
-    if (e.key === "@") {
+    if (e.key === "@" && !mencoes) {
       e.preventDefault();
       return abrir("inserir");
     }
@@ -967,7 +1123,13 @@ export function EditorRico({
       ir,
       enter,
       backspaceNoInicio,
-      abrirInserir: () => abrir("inserir"),
+      // Com menções ligadas (diário), `@` é do menu de menções, não do painel de inserir.
+      pontuacaoAposMencao,
+      abrirInserir: () => {
+        if (mencoes) return false;
+        abrir("inserir");
+        return true;
+      },
       // `/` só abre o menu numa linha vazia; em outro lugar é uma barra comum.
       abrirComandos: () => {
         const sel = window.getSelection();
@@ -996,9 +1158,10 @@ export function EditorRico({
       }
       // Em composição (IME) o texto ainda não é definitivo: deixa passar.
       if (ie.isComposing) return;
-      if (t === "insertText" && ie.data === "@") {
+      if (t === "insertText" && ie.data && a.pontuacaoAposMencao(ie.data)) {
         e.preventDefault();
-        a.abrirInserir();
+      } else if (t === "insertText" && ie.data === "@") {
+        if (a.abrirInserir()) e.preventDefault();
       } else if (t === "insertText" && ie.data === "/") {
         if (a.abrirComandos()) e.preventDefault();
       } else if (t === "insertParagraph" || t === "insertLineBreak") {
@@ -1309,8 +1472,58 @@ export function EditorRico({
         </div>
       )}
 
+      {menu && mencoes && typeof document !== "undefined" && createPortal(
+        <div
+          className={`desc-sugestao desc-menu-mencao${menu.acima ? " acima" : ""}`}
+          style={{ left: menu.x, top: menu.y }}
+          role="listbox"
+          aria-label={menu.g.tipo === "@" ? "Páginas" : "Tempo"}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {menu.g.tipo === "[[" && <span className="desc-sugestao-topo">Tempo: sessão, data ou evento</span>}
+          {[...new Set(menu.itens.map((i) => i.secao))].map((sec) => (
+            <div key={sec}>
+              <span className="desc-menu-sec">{sec}</span>
+              {menu.itens.map((it, i) =>
+                it.secao !== sec ? null : (
+                  <button
+                    key={it.chave}
+                    type="button"
+                    role="option"
+                    aria-selected={i === menu.ativo}
+                    className="desc-opcao"
+                    onClick={() => aceitarMencao(it.ref)}
+                    onMouseEnter={() => setMenu({ ...menu, ativo: i })}
+                  >
+                    <i className={`fas ${it.icone}`} style={it.cor ? { color: it.cor } : undefined} /> {it.rotulo}
+                    {it.detalhe && <small>{it.detalhe}</small>}
+                  </button>
+                ),
+              )}
+            </div>
+          ))}
+          {nomeNovoDoMenu(menu) && (
+              <div className="desc-menu-criar">
+                <span>Criar “{menu.g.q.trim()}” como (Enter = personagem):</span>
+                <div>
+                  {TIPOS_FICHA.map((t) => (
+                    <button key={t.id} type="button" className="desc-opcao" onClick={() => aceitarMencao(refDeEntidadeNova(t.id, menu.g.q.trim()))}>
+                      <i className={`fas ${t.icone}`} style={{ color: t.cor }} /> {t.nome}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          <span className="desc-sugestao-topo">
+            ↑↓ escolhe · <kbd>Enter</kbd> aceita · <kbd>Esc</kbd> fecha
+            {menu.g.tipo === "@" && !menu.g.colchete ? " · nome com espaço: @[Fulano Misterioso]" : ""}
+          </span>
+        </div>,
+        document.body,
+      )}
+
       <div className="desc-rodape">
-        <span>@ insere · / blocos · Tab recua tópico · toque num chip para editar</span>
+        <span>{mencoes ? "@ menciona uma página · [[ ]] liga a um tempo · / blocos" : "@ insere · / blocos · Tab recua tópico · toque num chip para editar"}</span>
         <span>
           <button
             type="button"

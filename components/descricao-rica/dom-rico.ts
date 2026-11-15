@@ -7,7 +7,7 @@ import {
   type Bloco,
   type Inline,
 } from "@/lib/descricao-rica";
-import { aparenciaDoAtomo, estiloDeCor, type Atomo, type ContextoRico } from "./atomos";
+import { TIPOS_MENCAO, aparenciaMencao, aparenciaDoAtomo, estiloDeCor, type Atomo, type ContextoRico } from "./atomos";
 
 // O editor é uma pilha de linhas: <div class="desc-l" data-b="…">. Cada linha é
 // um bloco do formato. Daqui sai e volta a string de tokens; o que o navegador
@@ -18,6 +18,16 @@ const ZERO = /​/g;
 /* ─── Átomos (chips) ─────────────────────────────────────── */
 
 export function elementoAtomo(no: Atomo, ctx?: ContextoRico): HTMLElement {
+  // Menção do diário: a palavra destacada (sem ícone nem pílula), que se apaga como um chip.
+  if (no.t === "ref" && TIPOS_MENCAO.has(no.tipo)) {
+    const m = aparenciaMencao(no, ctx);
+    const el = document.createElement("span");
+    el.contentEditable = "false";
+    el.dataset.no = JSON.stringify(no);
+    el.className = m.classe;
+    el.textContent = no.nome;
+    return el;
+  }
   // Imagem: aparece de verdade no editor (miniatura que se apaga como um chip).
   if (no.t === "imagem") {
     const fig = document.createElement("span");
