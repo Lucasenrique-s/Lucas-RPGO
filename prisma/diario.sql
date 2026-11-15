@@ -117,3 +117,94 @@ create index if not exists diario_ficha_versoes_ficha_id_criada_em_idx on public
 -- A página de cada personagem de jogador nasce sozinha na wiki; este campo liga uma à outra.
 alter table public.diario_fichas add column if not exists personagem_id text;
 create unique index if not exists diario_fichas_personagem_id_key on public.diario_fichas (personagem_id);
+
+
+-- Etapa 1 dos quadros de investigação. Só adiciona (tabelas e índices novos).
+-- Quadro: um da mesa (tipo 'mesa', público, sem dono) e os pessoais (tipo 'pessoal', com dono).
+create table if not exists public.diario_quadros (
+  id            text primary key,
+  mesa_id       text not null references public.mesas(id) on delete cascade,
+  tipo          text not null default 'pessoal',
+  dono_id       text,
+  nome          text not null,
+  -- Imagem de fundo: o quadro vira mapa (as páginas de Local viram alfinetes).
+  fundo_url     text,
+  fundo_largura integer,
+  fundo_altura  integer,
+  criado_em     timestamp(3) not null default current_timestamp,
+  atualizado_em timestamp(3) not null default current_timestamp
+);
+create index if not exists diario_quadros_mesa_id_dono_id_idx on public.diario_quadros (mesa_id, dono_id);
+-- Um quadro da mesa por mesa (o Prisma não declara índice único parcial; vale só aqui).
+create unique index if not exists diario_quadros_um_da_mesa_key on public.diario_quadros (mesa_id) where tipo = 'mesa';
+
+-- Compartilhar um quadro pessoal com uma pessoa: 'ver' ou 'editar'.
+create table if not exists public.diario_quadro_acessos (
+  quadro_id text not null references public.diario_quadros(id) on delete cascade,
+  user_id   text not null,
+  nivel     text not null default 'ver',
+  criado_em timestamp(3) not null default current_timestamp,
+  primary key (quadro_id, user_id)
+);
+create index if not exists diario_quadro_acessos_user_id_idx on public.diario_quadro_acessos (user_id);
+
+-- Cartão. tipo: postit | pagina | nota | sessao | imagem | moldura | texto.
+-- ref_id aponta para a ficha, a nota ou a sessão (sem FK: a referência pode sumir e o cartão avisa).
+-- apagado_em preenchido = está na lixeira (some de vez depois de alguns dias).
+create table if not exists public.diario_cartoes (
+  id                 text primary key,
+  quadro_id          text not null references public.diario_quadros(id) on delete cascade,
+  autor_id           text not null,
+  tipo               text not null,
+  formato            text not null default 'cartao',
+  x                  double precision not null default 0,
+  y                  double precision not null default 0,
+  largura            double precision not null default 200,
+  altura             double precision not null default 120,
+  z                  integer not null default 0,
+  cor                text not null default 'amarelo',
+  texto              text not null default '',
+  ref_id             text,
+  url                text,
+  sessao_id          text references public.sessoes(id) on delete set null,
+  oculto             boolean not null default false,
+  revelado_sessao_id text,
+  revelado_em        timestamp(3),
+  apagado_em         timestamp(3),
+  apagado_por        text,
+  criado_em          timestamp(3) not null default current_timestamp,
+  atualizado_em      timestamp(3) not null default current_timestamp
+);
+create index if not exists diario_cartoes_quadro_id_apagado_em_idx on public.diario_cartoes (quadro_id, apagado_em);
+create index if not exists diario_cartoes_ref_id_idx on public.diario_cartoes (ref_id);
+create index if not exists diario_cartoes_sessao_id_idx on public.diario_cartoes (sessao_id);
+
+-- Ligação (barbante) entre dois cartões do mesmo quadro.
+create table if not exists public.diario_ligacoes (
+  id                 text primary key,
+  quadro_id          text not null references public.diario_quadros(id) on delete cascade,
+  de_id              text not null references public.diario_cartoes(id) on delete cascade,
+  para_id            text not null references public.diario_cartoes(id) on delete cascade,
+  autor_id           text not null,
+  rotulo             text not null default '',
+  cor                text not null default 'cinza',
+  traco              text not null default 'continuo',
+  seta               boolean not null default false,
+  oculto             boolean not null default false,
+  revelado_sessao_id text,
+  revelado_em        timestamp(3),
+  apagado_em         timestamp(3),
+  criado_em          timestamp(3) not null default current_timestamp,
+  atualizado_em      timestamp(3) not null default current_timestamp
+);
+create index if not exists diario_ligacoes_quadro_id_apagado_em_idx on public.diario_ligacoes (quadro_id, apagado_em);
+create index if not exists diario_ligacoes_de_id_idx on public.diario_ligacoes (de_id);
+create index if not exists diario_ligacoes_para_id_idx on public.diario_ligacoes (para_id);
+
+
+-- Formatação do texto dos cartões do quadro (tamanho, alinhamento, cor e negrito). Só adiciona colunas.
+-- fonte_tamanho nulo = o tamanho padrão do tipo de cartão.
+alter table public.diario_cartoes add column if not exists fonte_tamanho integer;
+alter table public.diario_cartoes add column if not exists alinhamento text not null default 'esquerda';
+alter table public.diario_cartoes add column if not exists cor_texto text not null default 'padrao';
+alter table public.diario_cartoes add column if not exists negrito boolean not null default false;

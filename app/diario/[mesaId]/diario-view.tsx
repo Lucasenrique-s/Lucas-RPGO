@@ -37,6 +37,8 @@ import { CapturaRapida } from "./captura-rapida";
 import { DiarioAoVivo } from "./ao-vivo";
 import { Caderno } from "./caderno";
 import { PublicarDialogo, Wiki } from "./wiki";
+import { Quadros } from "./quadros";
+import type { QuadroResumoDTO } from "@/lib/diario-quadro-tipos";
 import { exigir } from "@/lib/acoes";
 
 type Props = {
@@ -53,6 +55,10 @@ type Props = {
   marcos: MarcoDiarioDTO[];
   autores: Record<string, string>;
   calendario: CalendarioDiarioDTO | null;
+  // Quadros de investigação (terceira área). Sem isto, a área não aparece (ex.: aba Diário da ficha).
+  quadros?: QuadroResumoDTO[];
+  // Área com que a tela abre (voltando de um quadro, abre em "quadros").
+  areaInicial?: "quadros";
   // Escopo com que a tela abre (a aba da ficha abre no "Meu diário").
   escopoInicial?: Escopo;
   // Atalho Ctrl+J / N neste componente. Desligue onde já há um atalho global.
@@ -62,6 +68,7 @@ type Props = {
   avisoLeitura?: string;
 };
 
+type Modo = "linha" | "caderno" | "wiki" | "quadros";
 type Filtro = "tudo" | "nota" | TipoFichaDiario;
 // De quem é o que aparece: tudo o que posso ler, só o meu, ou só o público.
 type Escopo = "tudo" | "meu" | "publico";
@@ -96,6 +103,8 @@ export function DiarioView({
   marcos,
   autores,
   calendario,
+  quadros,
+  areaInicial,
   escopoInicial = "tudo",
   atalho = true,
   somenteLeitura = false,
@@ -115,7 +124,7 @@ export function DiarioView({
   const [marcados, setMarcados] = useState<string[]>([]);
   const [apagandoVarios, setApagandoVarios] = useState(false);
   // Como ler o diário: a linha do tempo ou o caderno (lembrado no aparelho).
-  const [modo, setModoEstado] = useState<"linha" | "caderno" | "wiki">("linha");
+  const [modo, setModoEstado] = useState<Modo>(areaInicial ?? "linha");
   // Página aberta na wiki, e a ficha que está no diálogo de publicar.
   const [wikiId, setWikiId] = useState<string | null>(null);
   const [publicando, setPublicando] = useState<FichaDiarioDTO | null>(null);
@@ -125,11 +134,20 @@ export function DiarioView({
   }, [modo]);
   // Cada clique no botão de modo, dentro do caderno, pede pra ele descer da tela.
   const [pedidoSair, setPedidoSair] = useState(0);
-  const setModo = useCallback((m: "linha" | "caderno" | "wiki") => {
+  const setModo = useCallback((m: Modo) => {
     setModoEstado(m);
     setFolhaId(null);
-    // A wiki não é lembrada: o diário sempre abre no caderno (ou na linha, se foi a escolha).
-    if (m === "wiki") return;
+    // A área Quadros vai na URL (?area=quadros): voltar de um quadro reabre nela, na página do diário ou na aba da ficha.
+    try {
+      const url = new URL(window.location.href);
+      if (m === "quadros") url.searchParams.set("area", "quadros");
+      else url.searchParams.delete("area");
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      /* sem history: só não lembra */
+    }
+    // Wiki e quadros não são lembrados: o diário sempre abre no caderno (ou na linha, se foi a escolha).
+    if (m === "wiki" || m === "quadros") return;
     try {
       window.localStorage.setItem("rpgo:diario:modo", m);
     } catch {
@@ -137,7 +155,14 @@ export function DiarioView({
     }
   }, []);
   useEffect(() => {
+    if (areaInicial) return;
     const t = window.setTimeout(() => {
+      // Vindo de um cartão do quadro (?abrir=): o efeito mais abaixo abre o destino.
+      if (new URLSearchParams(window.location.search).get("abrir")) return;
+      if (quadros && new URLSearchParams(window.location.search).get("area") === "quadros") {
+        setModoEstado("quadros");
+        return;
+      }
       try {
         // O diário pessoal abre como caderno; a linha do tempo só quem a escolheu.
         if (window.localStorage.getItem("rpgo:diario:modo") !== "linha") setModoEstado("caderno");
@@ -146,13 +171,50 @@ export function DiarioView({
       }
     }, 0);
     return () => window.clearTimeout(t);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só na montagem
+  }, [areaInicial]);
   const [capturando, setCapturando] = useState(false);
   const abrirCaptura = useCallback(() => setCapturando(true), []);
   const fecharCaptura = useCallback(() => setCapturando(false), []);
   const [nomeando, setNomeando] = useState<string | null>(null);
   // Seções que a pessoa abriu ou fechou à mão (o resto segue o padrão).
   const [manual, setManual] = useState<Record<string, boolean>>({});
+
+  // Link de fora do diário (um cartão do quadro): abre a página, a anotação ou a sessão e limpa a URL.
+  function abrirDeFora(alvo: string) {
+    const [tipo, id] = alvo.split(":");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("abrir");
+    window.history.replaceState(window.history.state, "", url);
+    if (!id) return;
+    if (tipo === "ficha") {
+      const f = fichas.find((x) => x.id === id);
+      if (!f) return;
+      // Página pública ou oculta vive na wiki; a privada é a minha folha do caderno.
+      if (f.visibilidade === "privada") {
+        setModoEstado("caderno");
+        setFolhaId(id);
+      } else {
+        setModoEstado("wiki");
+        setWikiId(id);
+      }
+    } else if (tipo === "nota") {
+      setModoEstado("caderno");
+      setGaveta({ m: "nota", id });
+    } else if (tipo === "sessao") {
+      setModoEstado("linha");
+      setManual((m) => ({ ...m, [`sessao-${id}`]: true }));
+      window.setTimeout(() => document.getElementById(`sessao-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    }
+  }
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const abrir = new URLSearchParams(window.location.search).get("abrir");
+      if (abrir) abrirDeFora(abrir);
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só na montagem
+  }, []);
 
   const atualizar = useCallback(() => router.refresh(), [router]);
   const nomeAutor = (id: string) => (id === meuId ? "Você" : (autores[id] ?? "Jogador"));
@@ -310,16 +372,21 @@ export function DiarioView({
         <button
           type="button"
           className="diario-aba"
-          aria-pressed={modo !== "wiki"}
-          onClick={() => (modo === "linha" || modo === "wiki" ? setModo("caderno") : setPedidoSair((n) => n + 1))}
+          aria-pressed={modo === "linha" || modo === "caderno"}
+          onClick={() => (modo === "linha" || modo === "wiki" || modo === "quadros" ? setModo("caderno") : setPedidoSair((n) => n + 1))}
           title={modo === "linha" ? "Ler como caderno" : "Ler como linha do tempo"}
         >
           <i className={`fas ${modo === "linha" ? "fa-timeline" : "fa-book"}`} /> {modo === "linha" ? "Linha do tempo" : "Meu caderno"}{" "}
-          {modo !== "wiki" && <i className="fas fa-repeat" aria-hidden />}
+          {(modo === "linha" || modo === "caderno") && <i className="fas fa-repeat" aria-hidden />}
         </button>
         <button type="button" className="diario-aba" aria-pressed={modo === "wiki"} onClick={() => setModo("wiki")}>
           <i className="fas fa-earth-americas" /> Wiki da mesa
         </button>
+        {quadros && (
+          <button type="button" className="diario-aba" aria-pressed={modo === "quadros"} onClick={() => setModo("quadros")}>
+            <i className="fas fa-diagram-project" /> Quadros
+          </button>
+        )}
       </div>
       {modo === "linha" && (
         <>
@@ -441,7 +508,7 @@ export function DiarioView({
         </>
       )}
 
-      {modo !== "wiki" && (
+      {modo !== "wiki" && modo !== "quadros" && (
       <p className="diario-aviso">
         <i className="fas fa-eye" />{" "}
         {avisoLeitura ??
@@ -451,7 +518,9 @@ export function DiarioView({
       </p>
       )}
 
-      {modo === "wiki" ? (
+      {modo === "quadros" && quadros ? (
+        <Quadros mesaId={mesaId} meuId={meuId} quadros={quadros} autores={autores} somenteLeitura={somenteLeitura} />
+      ) : modo === "wiki" ? (
         <Wiki
           mesaId={mesaId}
           meuId={meuId}

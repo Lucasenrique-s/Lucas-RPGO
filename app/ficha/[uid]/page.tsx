@@ -33,6 +33,7 @@ import { acoesEmCurso, comAcoesEmCurso } from "@/lib/turno";
 import { PerfilSidebar } from "./perfil-sidebar";
 import { FichaTabs } from "./ficha-tabs";
 import { carregarDiario } from "@/lib/diario-carregar";
+import { carregarQuadros } from "@/lib/diario-quadros";
 import { CapturaMesa } from "@/app/diario/[mesaId]/captura-mesa";
 import "@/app/diario/[mesaId]/diario.css";
 import { RelogioMesa } from "../../calendario/[mesaId]/relogio";
@@ -294,6 +295,12 @@ export default async function FichaPage({ params, searchParams }: Params) {
       : Promise.resolve(null),
   ]);
 
+  // Quadros de investigação na aba Diário. O narrador vendo a ficha de um jogador recebe a lista como ele vê (só leitura).
+  const quadros =
+    diario && personagem.mesaId
+      ? await carregarQuadros(personagem.mesaId, user.id, personagem.userId !== user.id ? { comoUserId: personagem.userId } : undefined).catch(() => null)
+      : null;
+
   // Roster da Tripulação: só os membros da mesa. `de` diz de quem é a subficha.
   const tripulantes = personagem.mesaId
     ? grupo.filter((g) => g.mesaId === personagem.mesaId && !g.dono && !g.mesaDona)
@@ -480,6 +487,7 @@ export default async function FichaPage({ params, searchParams }: Params) {
         alvosCombate={combate?.participantes ?? []}
         atributoCdTecnicas={personagem.atributoCdTecnicas}
         diario={diario}
+        quadros={quadros}
       />
       </CatalogoTiposProvider>
       <div className="ficha-topo-acoes">

@@ -24,6 +24,7 @@ import { alvosPericiaCustom, type Atributo, type EfeitosAgregados } from "@/lib/
 import type { SubfichaCard } from "@/lib/resumo-personagem";
 import { ABAS, type AbaFicha } from "@/lib/subficha";
 import type { DadosDiario } from "@/lib/diario-carregar";
+import type { QuadroResumoDTO } from "@/lib/diario-quadro-tipos";
 import { DiarioView } from "@/app/diario/[mesaId]/diario-view";
 
 type Acao = React.ComponentProps<typeof AcoesTab>["acoes"][number];
@@ -65,6 +66,8 @@ type Props = {
   calendario: CalendarioCarregado | null;
   // Diário da mesa pra aba Diário; null = a ficha não tem a aba.
   diario: DadosDiario | null;
+  // Quadros de investigação (a área aparece no Diário quando há lista).
+  quadros: QuadroResumoDTO[] | null;
   objetivos: Objetivo[];
   isNarradorDaMesa: boolean;
   tripulantes: Tripulante[];
@@ -105,6 +108,7 @@ export function FichaTabs({
   efeitosAgregados,
   calendario,
   diario,
+  quadros,
   objetivos,
   isNarradorDaMesa,
   tripulantes,
@@ -444,6 +448,7 @@ export function FichaTabs({
             marcos={diario.marcos}
             autores={diario.autores}
             calendario={diario.calendario}
+            quadros={quadros ?? undefined}
             escopoInicial="meu"
             atalho={false}
             somenteLeitura={diario.somenteLeitura}

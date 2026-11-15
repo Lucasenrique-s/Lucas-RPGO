@@ -1,0 +1,980 @@
+/* Tela cheia do quadro. Só variáveis do tema: nada de cor fixa. */
+.qt {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-page);
+  color: var(--text-main);
+  overflow: hidden;
+}
+.qt-canvas {
+  position: absolute;
+  inset: 0;
+}
+.qt-canvas .react-flow {
+  --xy-background-color: var(--bg-page);
+  --xy-minimap-background-color: var(--bg-card);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--bg-page) 70%, transparent);
+  --xy-minimap-mask-stroke-color: var(--primary);
+  --xy-minimap-mask-stroke-width: 1.5;
+  --xy-controls-button-background-color: var(--bg-card);
+  --xy-controls-button-background-color-hover: var(--bg-surface, var(--bg-page));
+  --xy-controls-button-color: var(--text-main);
+  --xy-controls-button-color-hover: var(--text-main);
+  --xy-controls-button-border-color: var(--border);
+  --xy-attribution-background-color: transparent;
+  font-family: inherit;
+}
+.qt-canvas .react-flow__minimap {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 52px;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--text-main) 12%, transparent);
+}
+.qt-canvas .react-flow__controls {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--text-main) 12%, transparent);
+}
+.qt-canvas .react-flow__attribution {
+  color: var(--text-sec);
+}
+.qt-canvas .react-flow__attribution a {
+  color: inherit;
+}
+
+/* Barra do topo, flutuante */
+.qt-topo {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+.qt-topo > * {
+  pointer-events: auto;
+}
+.qt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--text-main) 10%, transparent);
+}
+.qt-btn--icone {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+}
+.qt-btn:hover {
+  border-color: var(--primary);
+}
+.qt-titulo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  max-width: min(560px, calc(100vw - 80px));
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 5px 12px 6px;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--text-main) 10%, transparent);
+}
+.qt-nome {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-main);
+}
+.qt-nome i {
+  font-size: 0.7rem;
+  color: var(--text-sec);
+  margin-left: 4px;
+}
+.qt-nome--fixo {
+  cursor: default;
+  margin: 0;
+}
+.qt-nome-campo {
+  font: inherit;
+  font-weight: 700;
+  font-size: 1rem;
+  width: 100%;
+  min-width: 200px;
+  background: var(--bg-surface, var(--bg-card));
+  color: var(--text-main);
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+.qt-selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 0.75rem;
+  color: var(--text-sec);
+}
+
+/* Estado vazio, no meio do canvas */
+.qt-vazio {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 24px;
+  color: var(--text-sec);
+  pointer-events: none;
+}
+.qt-vazio i {
+  font-size: 2rem;
+  margin-bottom: 4px;
+}
+.qt-vazio b {
+  color: var(--text-main);
+  font-size: 1.05rem;
+}
+.qt-vazio span {
+  max-width: 36ch;
+  font-size: 0.9rem;
+}
+
+/* ─── Cores dos cartões: nomes que apontam pro tema ─────────────────────── */
+[data-cor="amarelo"] { --c: var(--color-bonus); }
+[data-cor="rosa"] { --c: color-mix(in srgb, var(--danger) 60%, var(--color-livre)); }
+[data-cor="verde"] { --c: var(--color-success); }
+[data-cor="azul"] { --c: var(--info); }
+[data-cor="laranja"] { --c: var(--color-power); }
+[data-cor="roxo"] { --c: var(--color-livre); }
+[data-cor="cinza"] { --c: var(--text-sec); }
+
+/* ─── Barra de ferramentas, embaixo ─────────────────────────────────────── */
+.qt-barra {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  max-width: calc(100vw - 24px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--text-main) 16%, transparent);
+}
+.qt-barra--leitura {
+  padding: 9px 16px;
+  gap: 8px;
+  color: var(--text-sec);
+  font-size: 0.9rem;
+}
+.qt-barra-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 4px;
+  background: var(--border);
+}
+.qt-ferr {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 54px;
+  padding: 7px 8px;
+  background: transparent;
+  color: var(--text-main);
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.qt-ferr i {
+  font-size: 1.05rem;
+}
+.qt-ferr:hover {
+  background: var(--bg-surface, var(--bg-page));
+}
+.qt-ferr--on {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+}
+.qt-ferr--on:hover {
+  background: var(--primary);
+}
+@media (max-width: 720px) {
+  .qt-ferr {
+    min-width: 40px;
+    padding: 8px;
+  }
+  .qt-ferr span {
+    display: none;
+  }
+}
+.qt-aviso {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--text-main) 20%, transparent);
+}
+.qt-aviso button {
+  background: transparent;
+  color: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 50%, transparent);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+.qt-canvas--ligando .react-flow__pane,
+.qt-canvas--ligando .react-flow__node {
+  cursor: crosshair !important;
+}
+
+/* ─── Gaveta, à esquerda ────────────────────────────────────────────────── */
+.qg {
+  position: absolute;
+  top: 68px;
+  left: 12px;
+  bottom: 92px;
+  z-index: 5;
+  width: 290px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--text-main) 14%, transparent);
+  transform: translateX(calc(-100% - 24px));
+  visibility: hidden;
+  transition: transform 0.22s ease, visibility 0s linear 0.22s;
+}
+.qg--aberta {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.22s ease;
+}
+.qg-topo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.qg-abas {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+}
+.qg-aba {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 4px;
+  background: transparent;
+  color: var(--text-sec);
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.qg-aba[aria-selected="true"] {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+}
+.qg-fechar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: var(--text-sec);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.qg-busca {
+  background: var(--bg-surface, var(--bg-card));
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: inherit;
+}
+.qg-dica {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-sec);
+}
+.qg-lista {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.qg-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: grab;
+  user-select: none;
+}
+.qg-item:hover,
+.qg-item:focus-visible {
+  background: var(--bg-surface, var(--bg-page));
+  border-color: var(--border);
+  outline: none;
+}
+.qg-item-icone {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--bg-surface, var(--bg-page));
+  color: var(--text-sec);
+  overflow: hidden;
+}
+.qg-item-icone img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.qg-item-texto {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.qg-item-texto b {
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qg-item-texto small {
+  color: var(--text-sec);
+  font-size: 0.72rem;
+}
+.qg-vazio {
+  margin: 8px 0;
+  text-align: center;
+  color: var(--text-sec);
+  font-size: 0.85rem;
+}
+.qt-gaveta-abrir {
+  position: absolute;
+  top: 68px;
+  left: 12px;
+  z-index: 5;
+}
+@media (max-width: 720px) {
+  /* Celular: a gaveta vira folha deslizante por baixo. */
+  .qg {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    height: 52vh;
+    transform: translateY(calc(100% + 24px));
+  }
+  .qg--aberta {
+    transform: none;
+  }
+  .qt-gaveta-abrir span {
+    display: none;
+  }
+}
+
+/* ─── Busca de página (@) ───────────────────────────────────────────────── */
+.qb {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 14vh 16px 0;
+  background: color-mix(in srgb, var(--text-main) 28%, transparent);
+}
+.qb-caixa {
+  width: min(460px, 100%);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 14px 40px color-mix(in srgb, var(--text-main) 28%, transparent);
+  overflow: hidden;
+}
+.qb-campo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-sec);
+}
+.qb-campo input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  color: var(--text-main);
+  border: 0;
+  outline: 0;
+  font: inherit;
+  font-size: 1rem;
+}
+.qb-lista {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.qb-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--text-main);
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.qb-item--on {
+  background: var(--bg-surface, var(--bg-page));
+}
+.qb-item span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qb-item small {
+  color: var(--text-sec);
+}
+.qb-vazio {
+  padding: 14px;
+  text-align: center;
+  color: var(--text-sec);
+}
+.qb-dica {
+  margin: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+  color: var(--text-sec);
+}
+
+/* ─── Cartões ───────────────────────────────────────────────────────────── */
+.qn {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  color: var(--text-main);
+}
+.qn[data-selecionado],
+.react-flow__node.qn-origem .qn {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.qn-placeholder {
+  color: var(--text-sec);
+  font-style: italic;
+  opacity: 0.8;
+}
+.qn-entrada {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  padding: 0;
+}
+.qn-autor {
+  position: absolute;
+  right: 9px;
+  bottom: 5px;
+  font-size: 0.66rem;
+  color: color-mix(in srgb, var(--text-main) 55%, transparent);
+  pointer-events: none;
+}
+
+/* post-it */
+.qn-postit {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 12px 22px;
+  background: color-mix(in srgb, var(--c) 30%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--c) 60%, var(--border));
+  border-radius: 6px;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text-main) 16%, transparent);
+}
+.qn-postit-texto {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.38;
+}
+
+/* texto solto */
+.qn-texto-solto {
+  display: flex;
+}
+.qn-texto-grande {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+
+/* moldura: o miolo deixa o clique passar */
+.react-flow__node-moldura {
+  pointer-events: none !important;
+}
+.qn-moldura-cabeca,
+.qn-moldura-borda,
+.react-flow__node-moldura .react-flow__handle,
+.react-flow__node-moldura .react-flow__resize-control {
+  pointer-events: all;
+}
+.qn-moldura {
+  border: 2px dashed color-mix(in srgb, var(--c) 55%, var(--border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--c) 6%, transparent);
+}
+.qn-moldura-cabeca {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: color-mix(in srgb, var(--c) 20%, var(--bg-card));
+  border: 2px solid color-mix(in srgb, var(--c) 55%, var(--border));
+  border-radius: 14px 14px 0 0;
+  cursor: grab;
+}
+.qn-moldura-cabeca > i {
+  color: var(--text-sec);
+}
+.qn-moldura-titulo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qn-moldura-cabeca .qn-entrada {
+  height: 1.5em;
+}
+.qn-moldura-borda {
+  position: absolute;
+  cursor: grab;
+}
+.qn-moldura-borda--t { top: -6px; left: 0; right: 0; height: 10px; }
+.qn-moldura-borda--b { bottom: -6px; left: 0; right: 0; height: 10px; }
+.qn-moldura-borda--l { left: -6px; top: 0; bottom: 0; width: 10px; }
+.qn-moldura-borda--r { right: -6px; top: 0; bottom: 0; width: 10px; }
+
+/* imagem */
+.qn-imagem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qn-imagem-moldura {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text-main) 14%, transparent);
+  color: var(--text-sec);
+}
+.qn-imagem-moldura img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.qn-imagem-legenda {
+  flex: none;
+  min-height: 1.3em;
+  color: var(--text-sec);
+}
+
+/* referência: página, anotação, sessão */
+.qn-ref {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  /* Sem overflow: hidden aqui, ele cortaria a metade de fora das alças. */
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text-main) 12%, transparent);
+}
+.qn-ref--sem-acesso {
+  border-style: dashed;
+  opacity: 0.78;
+}
+.qn-ref-foto {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--bg-surface, var(--bg-page));
+  color: var(--text-sec);
+  font-size: 1.3rem;
+}
+.qn-ref-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.qn-ref-corpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.qn-ref-titulo {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qn-ref-previa {
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--text-sec);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.qn-ref-rodape {
+  margin-top: auto;
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-sec);
+}
+
+/* alças */
+.qn-alca.react-flow__handle {
+  width: 13px;
+  height: 13px;
+  background: var(--primary);
+  border: 2px solid var(--bg-card);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.react-flow__node:hover .qn-alca,
+.react-flow__node.selected .qn-alca,
+.qt-canvas--ligando .qn-alca {
+  opacity: 1;
+}
+.react-flow__handle.connectingto,
+.react-flow__handle.connectingfrom {
+  opacity: 1;
+}
+
+/* redimensionar */
+.qn-resize-linha.react-flow__resize-control.line {
+  border-color: var(--primary);
+}
+.qn-resize-ponto.react-flow__resize-control.handle {
+  width: 10px;
+  height: 10px;
+  background: var(--bg-card);
+  border: 2px solid var(--primary);
+  border-radius: 3px;
+}
+
+/* mini-barra sobre o cartão selecionado */
+.qn-minibarra {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--text-main) 18%, transparent);
+}
+.qn-cores {
+  display: flex;
+  gap: 4px;
+  padding: 0 4px;
+}
+.qn-cor {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c) 78%, var(--bg-card));
+  border: 2px solid var(--bg-card);
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+.qn-cor--on {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+.qn-mb-btn {
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  color: var(--text-main);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.qn-mb-btn:hover {
+  background: var(--bg-surface, var(--bg-page));
+}
+.qn-mb-btn--perigo {
+  color: var(--danger);
+}
+
+/* ─── Barbante ──────────────────────────────────────────────────────────── */
+.qa-rotulo {
+  position: absolute;
+  max-width: 200px;
+  padding: 2px 10px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.78rem;
+  pointer-events: all;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qa-barra {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--text-main) 20%, transparent);
+  pointer-events: all;
+  white-space: nowrap;
+}
+.qa-rotulo-campo {
+  width: 150px;
+  background: var(--bg-surface, var(--bg-card));
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 0.82rem;
+}
+.qa-grupo {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
+.qa-cor {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--bg-card);
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+}
+.qa-cor--on {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+.qa-traco,
+.qa-btn {
+  background: transparent;
+  color: var(--text-sec);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.qa-traco {
+  padding: 4px 3px;
+  line-height: 0;
+}
+.qa-btn {
+  width: 28px;
+  height: 28px;
+}
+.qa-traco--on,
+.qa-btn--on {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+}
+.qa-btn--perigo {
+  color: var(--danger);
+}
+.qa-leitura {
+  padding: 2px 8px;
+  font-size: 0.85rem;
+}
+/* Rótulo e barra do barbante ficam acima dos cartões (a camada deles nasce atrás dos nós). */
+.qt-canvas .react-flow__edgelabel-renderer {
+  z-index: 5000;
+}
+
+/* ─── Formatação do texto ───────────────────────────────────────────────── */
+.qn-mb-linha {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.qn-mb-btn--texto {
+  width: auto;
+  min-width: 30px;
+  padding: 0 8px;
+  font: inherit;
+  font-weight: 600;
+}
+.qn-mb-btn--on {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+}
+.qn-mb-btn--on:hover {
+  background: var(--primary);
+}
+.qn-mb-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.qn-fmt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  max-width: 420px;
+  padding: 4px 2px 2px;
+  border-top: 1px solid var(--border);
+}
+.qn-fmt-grupo {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.qn-fmt-grupo + .qn-fmt-grupo {
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+.qn-fmt-tam {
+  width: 46px;
+  padding: 4px 2px;
+  text-align: center;
+  background: var(--bg-surface, var(--bg-card));
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.85rem;
+  -moz-appearance: textfield;
+}
+.qn-fmt-tam::-webkit-outer-spin-button,
+.qn-fmt-tam::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.qn-cor-texto {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.qn-cor-texto--on {
+  border-color: var(--primary);
+}
+
+/* Cor do texto: o nome do cartão, misturado com a cor do tema pra continuar legível nos dois temas. */
+[data-cor-texto="amarelo"] { color: color-mix(in srgb, var(--color-bonus) 70%, var(--text-main)); }
+[data-cor-texto="rosa"] { color: color-mix(in srgb, color-mix(in srgb, var(--danger) 60%, var(--color-livre)) 80%, var(--text-main)); }
+[data-cor-texto="verde"] { color: color-mix(in srgb, var(--color-success) 85%, var(--text-main)); }
+[data-cor-texto="azul"] { color: color-mix(in srgb, var(--info) 85%, var(--text-main)); }
+[data-cor-texto="laranja"] { color: color-mix(in srgb, var(--color-power) 85%, var(--text-main)); }
+[data-cor-texto="roxo"] { color: color-mix(in srgb, var(--color-livre) 85%, var(--text-main)); }
+[data-cor-texto="cinza"] { color: var(--text-sec); }

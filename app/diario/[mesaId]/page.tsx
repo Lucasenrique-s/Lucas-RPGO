@@ -2,15 +2,20 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { usuarioDaRequest } from "@/lib/supabase/server";
 import { carregarDiario } from "@/lib/diario-carregar";
+import { carregarQuadros } from "@/lib/diario-quadros";
 import { ThemeButton } from "@/components/temas/theme-button";
 import { BotaoVoltar } from "@/components/botao-voltar";
 import { DiarioView } from "./diario-view";
 import "./diario.css";
 
-type Params = { params: Promise<{ mesaId: string }> };
+type Params = {
+  params: Promise<{ mesaId: string }>;
+  searchParams: Promise<{ [chave: string]: string | string[] | undefined }>;
+};
 
-export default async function DiarioPage({ params }: Params) {
+export default async function DiarioPage({ params, searchParams }: Params) {
   const { mesaId } = await params;
+  const { area } = await searchParams;
 
   const user = await usuarioDaRequest();
   if (!user) redirect("/login");
@@ -21,6 +26,9 @@ export default async function DiarioPage({ params }: Params) {
     if (!existe) notFound();
     redirect("/dashboard");
   }
+
+  // A lista de quadros não pode derrubar o resto do diário.
+  const quadros = await carregarQuadros(mesaId, user.id).catch(() => null);
 
   return (
     <div className="diario-pagina">
@@ -52,6 +60,8 @@ export default async function DiarioPage({ params }: Params) {
         marcos={dados.marcos}
         autores={dados.autores}
         calendario={dados.calendario}
+        quadros={quadros ?? undefined}
+        areaInicial={area === "quadros" && quadros ? "quadros" : undefined}
       />
     </div>
   );

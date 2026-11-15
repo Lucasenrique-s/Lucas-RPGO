@@ -19,3 +19,9 @@ alter table public.diario_marcos    enable row level security;
 
 alter table public.diario_wiki_notas    enable row level security;
 alter table public.diario_ficha_versoes enable row level security;
+
+-- Quadros de investigação: mesmo esquema (RLS ligado, sem políticas, fora do Realtime).
+alter table public.diario_quadros         enable row level security;
+alter table public.diario_quadro_acessos  enable row level security;
+alter table public.diario_cartoes         enable row level security;
+alter table public.diario_ligacoes        enable row level security;

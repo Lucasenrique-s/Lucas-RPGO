@@ -51,6 +51,7 @@ model Mesa {
   sessoes      Sessao[]
   diarioFichas DiarioFicha[]
   diarioNotas  DiarioNota[]
+  diarioQuadros DiarioQuadro[]
 
   @@map("mesas")
 }
@@ -1005,6 +1006,7 @@ model Sessao {
   combates    Combate[]
   logs        LogCombate[]
   diarioNotas DiarioNota[]
+  diarioCartoes DiarioCartao[]
 
   @@index([mesaId, encerradaEm])
   @@map("sessoes")
@@ -1273,4 +1275,127 @@ model DiarioMencao {
   @@id([origemTipo, origemId, alvoTipo, alvoId])
   @@index([alvoTipo, alvoId])
   @@map("diario_mencoes")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Quadros de investigação (diário, F3). Mesmas regras do resto do diário: RLS
+// sem políticas (prisma/diario-rls.sql), fora do Realtime, leitura e escrita só
+// pelo servidor. Permissões puras em lib/diario-quadro-permissao.ts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Um quadro da mesa por mesa (tipo "mesa", público, sem dono; o índice único
+// parcial existe só no SQL) e os quadros pessoais (tipo "pessoal").
+model DiarioQuadro {
+  id     String @id @default(uuid())
+  mesaId String @map("mesa_id")
+  mesa   Mesa   @relation(fields: [mesaId], references: [id], onDelete: Cascade)
+
+  tipo   String  @default("pessoal") // mesa | pessoal
+  donoId String? @map("dono_id") // userId; null no quadro da mesa
+  nome   String
+
+  // Imagem de fundo: o quadro vira mapa.
+  fundoUrl     String? @map("fundo_url")
+  fundoLargura Int?    @map("fundo_largura")
+  fundoAltura  Int?    @map("fundo_altura")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  cartoes   DiarioCartao[]
+  ligacoes  DiarioLigacao[]
+  acessos   DiarioQuadroAcesso[]
+
+  @@index([mesaId, donoId])
+  @@map("diario_quadros")
+}
+
+// Quadro pessoal compartilhado com uma pessoa (ver ou editar).
+model DiarioQuadroAcesso {
+  quadroId String       @map("quadro_id")
+  quadro   DiarioQuadro @relation(fields: [quadroId], references: [id], onDelete: Cascade)
+  userId   String       @map("user_id")
+  nivel    String       @default("ver") // ver | editar
+  criadoEm DateTime     @default(now()) @map("criado_em")
+
+  @@id([quadroId, userId])
+  @@index([userId])
+  @@map("diario_quadro_acessos")
+}
+
+model DiarioCartao {
+  id       String       @id @default(uuid())
+  quadroId String       @map("quadro_id")
+  quadro   DiarioQuadro @relation(fields: [quadroId], references: [id], onDelete: Cascade)
+  autorId  String       @map("autor_id")
+
+  tipo    String // postit | pagina | nota | sessao | imagem | moldura | texto
+  formato String @default("cartao") // cartao | alfinete (no mapa)
+  x       Float  @default(0)
+  y       Float  @default(0)
+  largura Float  @default(200)
+  altura  Float  @default(120)
+  z       Int    @default(0)
+  cor     String @default("amarelo")
+  texto   String @default("") // post-it, título da moldura, texto solto, legenda da imagem
+  // Formatação do texto do cartão (nulo = tamanho padrão do tipo).
+  fonteTamanho Int?    @map("fonte_tamanho")
+  alinhamento  String  @default("esquerda") // esquerda | centro | direita
+  corTexto     String  @default("padrao") @map("cor_texto") // padrao | nome de cor do cartão
+  negrito      Boolean @default(false)
+  refId   String? @map("ref_id") // ficha, nota ou sessão (sem FK: pode deixar de existir)
+  url     String? // imagem
+
+  // Sessão em que o cartão nasceu (camadas por sessão).
+  sessaoId String? @map("sessao_id")
+  sessao   Sessao? @relation(fields: [sessaoId], references: [id], onDelete: SetNull)
+
+  // Quadro da mesa: o narrador pode esconder; "revelar" guarda a sessão.
+  oculto           Boolean   @default(false)
+  reveladoSessaoId String?   @map("revelado_sessao_id")
+  reveladoEm       DateTime? @map("revelado_em")
+
+  // Lixeira: preenchido = apagado (some de vez depois de alguns dias).
+  apagadoEm  DateTime? @map("apagado_em")
+  apagadoPor String?   @map("apagado_por")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  saindo   DiarioLigacao[] @relation("LigacaoDe")
+  chegando DiarioLigacao[] @relation("LigacaoPara")
+
+  @@index([quadroId, apagadoEm])
+  @@index([refId])
+  @@index([sessaoId])
+  @@map("diario_cartoes")
+}
+
+model DiarioLigacao {
+  id       String       @id @default(uuid())
+  quadroId String       @map("quadro_id")
+  quadro   DiarioQuadro @relation(fields: [quadroId], references: [id], onDelete: Cascade)
+  deId     String       @map("de_id")
+  de       DiarioCartao @relation("LigacaoDe", fields: [deId], references: [id], onDelete: Cascade)
+  paraId   String       @map("para_id")
+  para     DiarioCartao @relation("LigacaoPara", fields: [paraId], references: [id], onDelete: Cascade)
+  autorId  String       @map("autor_id")
+
+  rotulo String  @default("")
+  cor    String  @default("cinza") // vermelho | azul | verde | cinza
+  traco  String  @default("continuo") // continuo | tracejado | pontilhado
+  seta   Boolean @default(false)
+
+  oculto           Boolean   @default(false)
+  reveladoSessaoId String?   @map("revelado_sessao_id")
+  reveladoEm       DateTime? @map("revelado_em")
+  apagadoEm        DateTime? @map("apagado_em")
+
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@index([quadroId, apagadoEm])
+  @@index([deId])
+  @@index([paraId])
+  @@map("diario_ligacoes")
 }
