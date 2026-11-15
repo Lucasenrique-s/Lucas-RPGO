@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { TIPOS_FICHA, rotuloSessao } from "@/lib/diario-tipos";
+import { TIPOS_FICHA, dataDaSessao, rotuloSessao } from "@/lib/diario-tipos";
 import type { RefNotaDTO, RefPaginaDTO, RefSessaoDTO, TipoCartao } from "@/lib/diario-quadro-tipos";
 
 export type AbaGaveta = "paginas" | "notas" | "sessoes";
@@ -138,7 +138,7 @@ export function Gaveta({
               </span>
               <span className="qg-item-texto">
                 <b>{rotuloSessao(s)}</b>
-                <small>{s.ativa ? "ao vivo" : new Date(s.iniciadaEm).toLocaleDateString("pt-BR")}</small>
+                <small>{s.ativa ? "ao vivo" : (dataDaSessao(s) ?? "anterior")}</small>
               </span>
             </div>
           ))}

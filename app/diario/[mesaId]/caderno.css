@@ -8,6 +8,8 @@
   --tinta: #25272b;
   --capa: #1f2328;
   --capa-2: #2a2f36;
+  --capa-borda: #3a414b;
+  --capa-texto: #d9dde3;
   --fita: #c0392b;
   position: relative;
   font-size: 22px;
@@ -91,7 +93,7 @@
 }
 .cad-pg.cad-pg--capa {
   background: var(--capa-2);
-  border: 2px solid #3a414b;
+  border: 2px solid var(--capa-borda);
   border-radius: 0 10px 10px 0;
   display: flex;
   flex-direction: column;
@@ -100,7 +102,7 @@
   gap: 18px;
   padding: 20px;
   box-sizing: border-box;
-  color: #d9dde3;
+  color: var(--capa-texto);
 }
 .cad-capa-etiqueta {
   display: flex;
@@ -921,6 +923,128 @@ span.cad-salvar {
 .cad-regua span {
   min-width: 2ch;
   text-align: center;
+}
+
+/* Cor da capa: o botão fica embaixo do livro; a paleta abre pra cima. */
+.cad-barra--capa {
+  position: relative;
+  justify-content: center;
+  margin: 10px 0 0;
+}
+.cad-capa-botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-sec);
+  font: inherit;
+  cursor: pointer;
+}
+.cad-capa-botao:hover,
+.cad-capa-botao[aria-expanded="true"] {
+  color: var(--text);
+  border-color: var(--primary);
+}
+.cad-capa-amostra {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(128, 128, 128, 0.55);
+  background: var(--amostra);
+  flex: none;
+}
+.cad-capa-paleta {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: min(300px, 92vw);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--primary);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+.cad-capa-opcao {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--amostra);
+  box-shadow: 0 0 0 1px rgba(128, 128, 128, 0.55);
+  cursor: pointer;
+}
+.cad-capa-opcao:hover {
+  transform: scale(1.1);
+}
+.cad-capa-opcao[aria-pressed="true"] {
+  border-color: var(--bg-card);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+.cad-capa-livre {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 0.85em;
+  color: var(--text-sec);
+}
+.cad-capa-livre input {
+  width: 44px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Sessão da anotação, no lugar do título da página de escrever. */
+.cad-sessao-sel {
+  width: 100%;
+  max-width: 100%;
+  font: inherit;
+  font-size: 1em;
+  line-height: 34px;
+  padding: 0 20px 0 0;
+  border: 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.25);
+  border-radius: 0;
+  background: transparent;
+  color: var(--tinta);
+  cursor: pointer;
+  appearance: none;
+  text-overflow: ellipsis;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 9px) 55%, calc(100% - 4px) 55%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+.cad-sessao-sel option {
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  color: #25272b;
+  background: #fff;
+}
+.cad-sessao-fixa {
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.25);
+  padding-right: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Folha de uma página que está na wiki: o resumo é o público. */

@@ -55,7 +55,7 @@ export async function sincronizarPaginasDePersonagens(mesaId: string): Promise<v
   if (faltam.length === 0) return;
 
   const sessao = await prisma.sessao.findFirst({
-    where: { mesaId },
+    where: { mesaId, retroativa: false },
     orderBy: [{ encerradaEm: { sort: "asc", nulls: "first" } }, { iniciadaEm: "desc" }],
     select: { id: true },
   });

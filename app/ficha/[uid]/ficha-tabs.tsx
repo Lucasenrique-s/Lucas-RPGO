@@ -443,6 +443,7 @@ export function FichaTabs({
             notas={diario.notas}
             notasWiki={diario.notasWiki}
             sessoes={diario.sessoes}
+            capaCor={diario.capaCor}
             mencoes={diario.mencoes}
             relacoes={diario.relacoes}
             marcos={diario.marcos}

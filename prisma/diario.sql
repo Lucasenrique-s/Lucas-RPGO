@@ -208,3 +208,16 @@ alter table public.diario_cartoes add column if not exists fonte_tamanho integer
 alter table public.diario_cartoes add column if not exists alinhamento text not null default 'esquerda';
 alter table public.diario_cartoes add column if not exists cor_texto text not null default 'padrao';
 alter table public.diario_cartoes add column if not exists negrito boolean not null default false;
+
+
+-- Sessões anteriores ao sistema (registradas só pra organizar o diário) e a cor da capa do caderno.
+-- Só adiciona. A sessão retroativa nunca é "ativa" (encerrada_em preenchido) e não tem data real.
+alter table public.sessoes add column if not exists retroativa boolean not null default false;
+
+create table if not exists public.diario_cadernos (
+  mesa_id       text not null references public.mesas(id) on delete cascade,
+  user_id       text not null,
+  capa_cor      text not null,
+  atualizado_em timestamp(3) not null default current_timestamp,
+  primary key (mesa_id, user_id)
+);

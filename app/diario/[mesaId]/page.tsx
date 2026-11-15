@@ -55,6 +55,7 @@ export default async function DiarioPage({ params, searchParams }: Params) {
         notas={dados.notas}
         notasWiki={dados.notasWiki}
         sessoes={dados.sessoes}
+        capaCor={dados.capaCor}
         mencoes={dados.mencoes}
         relacoes={dados.relacoes}
         marcos={dados.marcos}

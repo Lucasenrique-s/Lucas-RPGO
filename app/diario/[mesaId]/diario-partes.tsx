@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { exigir } from "@/lib/acoes";
 import { imagensDeRica } from "@/lib/descricao-rica";
 import type { ConfigMencao } from "@/lib/diario-mencao";
+import { numeroSugerido } from "@/lib/diario-sessao";
 import {
   RELACAO_FICHA,
   STATUS_FICHA,
@@ -28,6 +29,7 @@ import {
   apagarFichaDiario,
   apagarNotaDiario,
   criarFichaDiario,
+  criarSessaoAnteriorDiario,
   criarNotaDiario,
   editarFichaDiario,
   definirEditoresFichaDiario,
@@ -44,6 +46,95 @@ import {
 } from "./actions";
 
 export const ENTRE = "entre"; // "Entre sessões" (sessaoId nulo)
+const NOVA_SESSAO = "__nova-sessao__";
+
+// Pede número e título de uma sessão jogada antes do sistema e a registra. Erros do servidor
+// (ex.: "a sessão 7 já está registrada") aparecem dentro do próprio diálogo, sem fechá-lo.
+export async function registrarSessaoAnterior(mesaId: string, sessoes: SessaoDiarioDTO[]): Promise<SessaoDiarioDTO | null> {
+  const sugerido = numeroSugerido(sessoes.map((s) => s.numero));
+  const r = await Swal.fire<SessaoDiarioDTO>({
+    title: "Registrar sessão anterior",
+    html:
+      `<p style="margin:0 0 12px;font-size:14px;opacity:.8">Uma sessão que vocês jogaram antes de usar o diário. ` +
+      `Ela entra na ordem pelo número, e qualquer um da mesa pode anotar nela.</p>` +
+      `<input id="sa-numero" class="swal2-input" type="number" min="1" max="9999" placeholder="Número da sessão" value="${sugerido ?? ""}">` +
+      `<input id="sa-titulo" class="swal2-input" maxlength="80" placeholder="Título (opcional)">`,
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: "Registrar",
+    cancelButtonText: "Cancelar",
+    background: "var(--bg-card)",
+    color: "var(--text-main)",
+    didOpen: () => document.getElementById("sa-numero")?.focus(),
+    preConfirm: async () => {
+      const numero = Number((document.getElementById("sa-numero") as HTMLInputElement | null)?.value);
+      const titulo = (document.getElementById("sa-titulo") as HTMLInputElement | null)?.value ?? "";
+      if (!Number.isInteger(numero) || numero < 1 || numero > 9999) {
+        Swal.showValidationMessage("Informe o número da sessão (1 a 9999).");
+        return false;
+      }
+      try {
+        return exigir(await criarSessaoAnteriorDiario(mesaId, { numero, titulo })).sessao;
+      } catch (e) {
+        Swal.showValidationMessage(e instanceof Error ? e.message : "Falha ao registrar a sessão.");
+        return false;
+      }
+    },
+  });
+  return r.isConfirmed && r.value ? r.value : null;
+}
+
+// As sessões do servidor mais as que acabaram de ser registradas aqui (a lista do servidor
+// só chega com a próxima atualização). Mais recente primeiro, como o servidor manda.
+export function useSessoesComNovas(sessoes: SessaoDiarioDTO[]) {
+  const [novas, setNovas] = useState<SessaoDiarioDTO[]>([]);
+  const todas = useMemo(
+    () => [...sessoes, ...novas.filter((n) => !sessoes.some((s) => s.id === n.id))].sort((a, b) => b.iniciadaEm.localeCompare(a.iniciadaEm)),
+    [sessoes, novas],
+  );
+  return { todas, adicionar: (s: SessaoDiarioDTO) => setNovas((l) => [...l, s]) };
+}
+
+// Escolhe a sessão de uma anotação: as da mesa, "Entre sessões" ou uma sessão anterior ao
+// sistema, que é registrada na hora. `valor` é o id da sessão ou ENTRE.
+export function SeletorSessao({
+  mesaId,
+  sessoes,
+  valor,
+  aoMudar,
+  aoRegistrar,
+  className,
+  rotulo = "Escolher a sessão da anotação",
+}: {
+  mesaId: string;
+  // Já com as sessões novas (useSessoesComNovas).
+  sessoes: SessaoDiarioDTO[];
+  valor: string;
+  aoMudar: (valor: string) => void;
+  aoRegistrar: (sessao: SessaoDiarioDTO) => void;
+  className?: string;
+  rotulo?: string;
+}) {
+  async function mudou(v: string) {
+    if (v !== NOVA_SESSAO) return aoMudar(v);
+    const nova = await registrarSessaoAnterior(mesaId, sessoes);
+    if (!nova) return;
+    aoRegistrar(nova);
+    aoMudar(nova.id);
+  }
+  return (
+    <select className={className} value={valor} onChange={(e) => void mudou(e.target.value)} aria-label={rotulo}>
+      {sessoes.map((s) => (
+        <option key={s.id} value={s.id}>
+          {rotuloSessao(s)}
+          {s.ativa ? " (ativa)" : ""}
+        </option>
+      ))}
+      <option value={ENTRE}>Entre sessões</option>
+      <option value={NOVA_SESSAO}>＋ Registrar sessão anterior…</option>
+    </select>
+  );
+}
 
 export function avisar(texto: string) {
   void Swal.fire({ icon: "error", title: "Erro", text: texto, background: "var(--bg-card)", color: "var(--text-main)" });
@@ -404,6 +495,7 @@ export function NotaForm({
   const [tags, setTags] = useState(inicial?.tags.join(", ") ?? "");
   const [importante, setImportante] = useState(inicial?.importante ?? false);
   const [sessao, setSessao] = useState<string>(inicial ? (inicial.sessaoId ?? ENTRE) : (sessaoPadrao ?? ENTRE));
+  const { todas: todasSessoes, adicionar: adicionarSessao } = useSessoesComNovas(sessoes);
   const [salvando, setSalvando] = useState(false);
 
   async function salvar() {
@@ -448,15 +540,7 @@ export function NotaForm({
       <div className="diario-form-linha">
         <label>
           Sessão
-          <select value={sessao} onChange={(e) => setSessao(e.target.value)}>
-            {sessoes.map((s) => (
-              <option key={s.id} value={s.id}>
-                {rotuloSessao(s)}
-                {s.ativa ? " (ativa)" : ""}
-              </option>
-            ))}
-            <option value={ENTRE}>Entre sessões</option>
-          </select>
+          <SeletorSessao mesaId={mesaId} sessoes={todasSessoes} valor={sessao} aoMudar={setSessao} aoRegistrar={adicionarSessao} />
         </label>
         <label>
           Tags (separadas por vírgula)

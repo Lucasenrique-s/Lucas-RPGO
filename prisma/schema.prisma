@@ -1002,6 +1002,9 @@ model Sessao {
   // "Sessão 12: A fuga de Enies Lobby". Sessões antigas ficam sem número/título.
   numero Int?
   titulo String?
+  // Sessão jogada antes do sistema, registrada só pra organizar o diário (ninguém a
+  // inicia). Não tem data real: a ordem vem do número, e `iniciadaEm` é só pra ordenar.
+  retroativa Boolean @default(false)
 
   combates    Combate[]
   logs        LogCombate[]
@@ -1237,6 +1240,17 @@ model DiarioMarco {
 
   @@index([mesaId, autorId])
   @@map("diario_marcos")
+}
+
+// O caderno de cada jogador numa mesa: hoje só a cor da capa (#rrggbb).
+model DiarioCaderno {
+  mesaId  String @map("mesa_id")
+  userId  String @map("user_id")
+  capaCor String @map("capa_cor")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@id([mesaId, userId])
+  @@map("diario_cadernos")
 }
 
 // Um trecho de texto rico, sempre ligado a uma sessão (null = "Entre sessões").

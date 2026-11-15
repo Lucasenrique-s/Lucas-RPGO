@@ -17,6 +17,7 @@ import type {
   TipoFichaDiario,
 } from "@/lib/diario-tipos";
 import { normalizarTipoFicha } from "@/lib/diario-tipos";
+import { corDaCapa } from "@/lib/diario-capa";
 
 export type DadosDiario = {
   mesaNome: string;
@@ -34,6 +35,8 @@ export type DadosDiario = {
   calendario: CalendarioDiarioDTO | null;
   // Narrador vendo o diário de um jogador: só leitura.
   somenteLeitura: boolean;
+  // Cor da capa do caderno de quem está sendo visto (#rrggbb; a padrão se nunca escolheu).
+  capaCor: string;
 };
 
 // null = a pessoa não participa da mesa.
@@ -62,7 +65,7 @@ export async function carregarDiario(
 
   // O filtro de leitura vai na própria consulta: nota alheia nem sai do banco.
   const filtro = filtroLeituraDiario(acesso);
-  const [mesa, fichas, notas, sessoes, membros, cal] = await Promise.all([
+  const [mesa, fichas, notas, sessoes, membros, cal, caderno] = await Promise.all([
     prisma.mesa.findUniqueOrThrow({ where: { id: mesaId }, select: { nome: true, userId: true } }),
     prisma.diarioFicha.findMany({ where: { mesaId, ...filtro }, orderBy: { criadaEm: "asc" }, include: { retratos: { orderBy: { ordem: "asc" } } } }),
     prisma.diarioNota.findMany({ where: { mesaId, ...filtro }, orderBy: { criadaEm: "desc" } }),
@@ -73,6 +76,8 @@ export async function carregarDiario(
     }),
     // Jogador não recebe evento oculto (o carregador já filtra).
     carregarCalendario(mesaId, { isNarrador: acesso.narrador }),
+    // Falha aqui (ex.: tabela ainda não criada) não derruba o diário: volta a capa padrão.
+    prisma.diarioCaderno.findUnique({ where: { mesaId_userId: { mesaId, userId: acesso.userId } } }).catch(() => null),
   ]);
 
   // Backlinks: só de origens que esta pessoa já pode ler (fichas e notas acima).
@@ -143,6 +148,7 @@ export async function carregarDiario(
       iniciadaEm: s.iniciadaEm.toISOString(),
       encerradaEm: s.encerradaEm?.toISOString() ?? null,
       ativa: s.encerradaEm === null,
+      retroativa: s.retroativa,
     })),
     mencoes: mencoes.map((m) => ({
       origemTipo: m.origemTipo as MencaoDiarioDTO["origemTipo"],
@@ -154,6 +160,7 @@ export async function carregarDiario(
     marcos: marcos.map((m) => ({ id: m.id, nome: m.nome })),
     autores,
     somenteLeitura,
+    capaCor: corDaCapa(caderno?.capaCor),
     calendario: cal
       ? {
           config: cal.config,
@@ -199,6 +206,7 @@ export async function carregarRefsDiario(mesaId: string, userId: string): Promis
       iniciadaEm: s.iniciadaEm.toISOString(),
       encerradaEm: s.encerradaEm?.toISOString() ?? null,
       ativa: s.encerradaEm === null,
+      retroativa: s.retroativa,
     })),
     calendario: cal
       ? {

@@ -107,7 +107,13 @@ export type SessaoDiarioDTO = {
   iniciadaEm: string;
   encerradaEm: string | null;
   ativa: boolean;
+  // Jogada antes do sistema: não tem data de verdade (`iniciadaEm` só ordena).
+  retroativa: boolean;
 };
+
+// A data a mostrar ao lado da sessão; null nas anteriores (a data delas seria inventada).
+export const dataDaSessao = (s: Pick<SessaoDiarioDTO, "iniciadaEm" | "retroativa">): string | null =>
+  s.retroativa ? null : new Date(s.iniciadaEm).toLocaleDateString("pt-BR");
 
 export function rotuloSessao(s: Pick<SessaoDiarioDTO, "numero" | "titulo" | "iniciadaEm">): string {
   const data = new Date(s.iniciadaEm).toLocaleDateString("pt-BR");

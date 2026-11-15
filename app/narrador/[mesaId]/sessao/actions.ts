@@ -849,7 +849,8 @@ export async function encerrarCombate(mesaId: string, combateId: string) {
 // pra mais antiga. Registro de antes das estatísticas vem só com o resumo antigo.
 async function montarHistorico(mesaId: string): Promise<SessaoHistorico[]> {
   const sessoes = await prisma.sessao.findMany({
-    where: { mesaId },
+    // As anteriores ao sistema existem só no diário: não têm combate nem estatística.
+    where: { mesaId, retroativa: false },
     orderBy: { iniciadaEm: "desc" },
     take: 20,
     include: { logs: { orderBy: { encerradoEm: "asc" } } },

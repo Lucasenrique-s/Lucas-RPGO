@@ -8,12 +8,15 @@ import { avisarDiario } from "@/lib/diario-aovivo";
 import { usuarioDaRequest } from "@/lib/supabase/server";
 import { ErroDeUso, executar as executarEm } from "@/lib/acoes";
 import { acessoAoDiario, podeApagarDiario, podeEscreverDiario, podeLerDiario, recalcularMencoes, resolverNovos, type AcessoDiario } from "@/lib/diario";
+import { corValida } from "@/lib/diario-capa";
+import { instanteDaSessaoAnterior } from "@/lib/diario-sessao";
 import {
   LIMITES_DIARIO as L,
   RELACAO_FICHA,
   STATUS_FICHA,
   ehTipoFicha,
   type CamposFicha,
+  type SessaoDiarioDTO,
   type TipoFichaDiario,
   type VersaoFichaDTO,
 } from "@/lib/diario-tipos";
@@ -298,6 +301,57 @@ export async function nomearSessaoDiario(mesaId: string, sessaoId: string, numer
   });
 }
 
+// Registra uma sessão jogada ANTES do sistema, pra a pessoa poder anotar o que aconteceu
+// nela. Qualquer participante registra (o narrador corrige nome e número depois). Não tem
+// data real: a ordem vem do número (lib/diario-sessao.ts) e ela nasce encerrada.
+export async function criarSessaoAnteriorDiario(mesaId: string, dados: { numero: number; titulo?: string }) {
+  return executar(async (): Promise<{ sessao: SessaoDiarioDTO }> => {
+    await autorizar(mesaId);
+    const { numero } = dados;
+    if (!Number.isInteger(numero) || numero < 1 || numero > 9999) throw new ErroDeUso("Número de sessão inválido.");
+    const titulo = texto(dados.titulo ?? "", L.titulo, "Título") || null;
+
+    const outras = await prisma.sessao.findMany({ where: { mesaId }, select: { numero: true, iniciadaEm: true } });
+    if (outras.some((s) => s.numero === numero)) {
+      throw new ErroDeUso(`A sessão ${numero} já está registrada. Escolha a anotação nela, ou peça ao narrador para mudar o número dela.`);
+    }
+
+    const quando = instanteDaSessaoAnterior(numero, outras);
+    const s = await prisma.sessao.create({
+      data: { mesaId, numero, titulo, retroativa: true, iniciadaEm: quando, encerradaEm: quando },
+    });
+    revalidar(mesaId);
+    return {
+      sessao: {
+        id: s.id,
+        numero: s.numero,
+        titulo: s.titulo,
+        iniciadaEm: s.iniciadaEm.toISOString(),
+        encerradaEm: s.encerradaEm?.toISOString() ?? null,
+        ativa: false,
+        retroativa: true,
+      },
+    };
+  });
+}
+
+// ─── Caderno ───────────────────────────────────────────────────
+
+// A cor da capa do PRÓPRIO caderno (cada jogador tem a sua, por mesa).
+export async function definirCapaDiario(mesaId: string, cor: string) {
+  return executar(async () => {
+    const acesso = await autorizar(mesaId);
+    if (!corValida(cor)) throw new ErroDeUso("Cor inválida.");
+    const capaCor = cor.toLowerCase();
+    await prisma.diarioCaderno.upsert({
+      where: { mesaId_userId: { mesaId, userId: acesso.userId } },
+      create: { mesaId, userId: acesso.userId, capaCor },
+      update: { capaCor },
+    });
+    revalidatePath(`/diario/${mesaId}`);
+  });
+}
+
 // ─── Visibilidade ──────────────────────────────────────────────
 
 export type Visibilidade = "privada" | "publica";
@@ -306,7 +360,7 @@ export type VisibilidadeFicha = Visibilidade | "oculta";
 
 // Em que sessão a página entrou na wiki: a ativa, ou a última.
 async function sessaoParaRevelar(tx: Prisma.TransactionClient, mesaId: string): Promise<string | null> {
-  const s = await tx.sessao.findFirst({ where: { mesaId }, orderBy: [{ encerradaEm: { sort: "asc", nulls: "first" } }, { iniciadaEm: "desc" }], select: { id: true } });
+  const s = await tx.sessao.findFirst({ where: { mesaId, retroativa: false }, orderBy: [{ encerradaEm: { sort: "asc", nulls: "first" } }, { iniciadaEm: "desc" }], select: { id: true } });
   return s?.id ?? null;
 }
 

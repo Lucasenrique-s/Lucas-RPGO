@@ -25,3 +25,6 @@ alter table public.diario_quadros         enable row level security;
 alter table public.diario_quadro_acessos  enable row level security;
 alter table public.diario_cartoes         enable row level security;
 alter table public.diario_ligacoes        enable row level security;
+
+-- Cor da capa do caderno de cada jogador.
+alter table public.diario_cadernos enable row level security;

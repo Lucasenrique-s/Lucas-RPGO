@@ -16,6 +16,7 @@ import { exigir } from "@/lib/acoes";
 import { textoPuroRico } from "@/lib/descricao-rica";
 import {
   TIPOS_FICHA,
+  dataDaSessao,
   rotuloDia,
   rotuloSessao,
   type CalendarioDiarioDTO,
@@ -29,10 +30,11 @@ import { montarLinha, type SecaoLinha } from "@/lib/diario-linha";
 import { DescricaoRica } from "@/components/descricao-rica/descricao-rica";
 import type { ContextoRico, OpcaoRef } from "@/components/descricao-rica/atomos";
 import type { ConfigMencao, ItemMencao } from "@/lib/diario-mencao";
-import { EditorComImagem, avisar, iconeDoTipo } from "./diario-partes";
+import { CAPAS, corValida, estiloDaCapa } from "@/lib/diario-capa";
+import { ENTRE, EditorComImagem, SeletorSessao, avisar, iconeDoTipo, useSessoesComNovas } from "./diario-partes";
 import { BuscaCaderno } from "./caderno-busca";
 import { FolhaEntidade } from "./caderno-folha";
-import { criarNotaDiario } from "./actions";
+import { criarNotaDiario, definirCapaDiario } from "./actions";
 import "./caderno.css";
 
 // Letra de mão das anotações (baixada no build, servida do próprio site).
@@ -106,7 +108,7 @@ const Conteudo = memo(function Conteudo({ secoes, grupos, calendario, contexto, 
             <h3>{s.sessao ? rotuloSessao(s.sessao) : s.rotulo}</h3>
             {s.sessao && (
               <span className="cad-sub">
-                {new Date(s.sessao.iniciadaEm).toLocaleDateString("pt-BR")}
+                {dataDaSessao(s.sessao) ?? "antes do diário"}
                 {s.sessao.ativa ? " · ao vivo" : ""}
               </span>
             )}
@@ -240,7 +242,7 @@ function PaginaEscreverFixa({ dim, rotulo, titulo, texto }: { dim: Dim; rotulo: 
   return (
     <div className="cad-pg" style={{ width: dim.pw, height: dim.ph }}>
       <div className="cad-escrever cad-escrever--fixa" style={{ left: PAD_X, top: PAD_Y, width: dim.pw - 2 * PAD_X, height: dim.ph - 2 * PAD_Y }}>
-        <h3>{rotulo}</h3>
+        <h3 className="cad-sessao-fixa">{rotulo}</h3>
         <div className={`cad-titulo-campo${titulo ? "" : " cad-titulo-campo--vazio"}`}>{titulo || "Título (opcional)"}</div>
         <div className="cad-texto-fixo">{texto ? textoPuroRico(texto) : ""}</div>
         <span className="cad-salvar">Guardar no caderno</span>
@@ -255,6 +257,7 @@ export function Caderno({
   mesaId,
   meuId,
   titulo,
+  capaCor,
   fichas,
   notas,
   sessoes,
@@ -279,6 +282,8 @@ export function Caderno({
   meuId: string;
   // Quem escreve o caderno (nome na capa).
   titulo: string;
+  // Cor da capa (#rrggbb) escolhida por quem escreve o caderno.
+  capaCor: string;
   fichas: FichaDiarioDTO[];
   notas: NotaDiarioDTO[];
   sessoes: SessaoDiarioDTO[];
@@ -617,16 +622,51 @@ export function Caderno({
     window.setTimeout(() => setDesliza(false), TEMPO_DESLIZE_MS);
   }
 
+  /* ─── Cor da capa ──────────────────────────────────────── */
+
+  // A cor escolhida aparece na hora; o servidor recebe depois (o seletor livre dispara
+  // vários valores por segundo ao arrastar). Falhou: volta à cor que veio do servidor.
+  const [corLocal, setCorLocal] = useState<string | null>(null);
+  const cor = corLocal ?? capaCor;
+  const timerCor = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timerCor.current), []);
+  function escolherCor(nova: string, esperar = 0) {
+    if (somenteLeitura || !corValida(nova)) return;
+    setCorLocal(nova);
+    window.clearTimeout(timerCor.current);
+    timerCor.current = window.setTimeout(async () => {
+      try {
+        exigir(await definirCapaDiario(mesaId, nova));
+      } catch (e) {
+        setCorLocal(null);
+        avisar(e instanceof Error ? e.message : "Falha ao salvar a cor da capa.");
+      }
+    }, esperar);
+  }
+
   /* ─── Escrever na página em branco ─────────────────────── */
 
   const [tituloNovo, setTituloNovo] = useState("");
   const [texto, setTexto] = useState("");
   const [salvando, setSalvando] = useState(false);
+  // A sessão da anotação: a que a pessoa escolheu; senão a ao vivo; senão "Entre sessões".
+  // Escolher uma sessão anterior ao sistema registra a sessão na hora.
+  const { todas: todasSessoes, adicionar: adicionarSessao } = useSessoesComNovas(sessoes);
+  const [sessaoEscolhida, setSessaoEscolhida] = useState<string | null>(null);
+  const sessaoEscrever = sessaoEscolhida && (sessaoEscolhida === ENTRE || todasSessoes.some((s) => s.id === sessaoEscolhida))
+    ? sessaoEscolhida
+    : (ativa?.id ?? ENTRE);
   async function salvar() {
     if (!texto.trim() || salvando) return;
     setSalvando(true);
     try {
-      exigir(await criarNotaDiario(mesaId, { titulo: tituloNovo, corpo: texto.trim() }));
+      exigir(
+        await criarNotaDiario(mesaId, {
+          titulo: tituloNovo,
+          corpo: texto.trim(),
+          sessaoId: sessaoEscrever === ENTRE ? null : sessaoEscrever,
+        }),
+      );
       setTexto("");
       setTituloNovo("");
       aoIrParaNova.current = true;
@@ -696,7 +736,8 @@ export function Caderno({
     [secoes, grupos, calendario, contexto, paginaFicha, contagem, abrirFolha, aoAbrirNota, irParaColuna],
   );
 
-  const rotuloEscrever = ativa ? rotuloSessao(ativa) : "Entre sessões";
+  const sessaoDaEscrita = todasSessoes.find((s) => s.id === sessaoEscrever);
+  const rotuloEscrever = sessaoDaEscrita ? rotuloSessao(sessaoDaEscrita) : "Entre sessões";
 
   // O que cada página lógica mostra quando a folha está virando.
   const paginaLogica = useCallback(
@@ -782,7 +823,7 @@ export function Caderno({
   const alturaAba = Math.max(26, Math.min(54, Math.floor((dim.ph - 60) / Math.max(1, abas.length))));
 
   return (
-    <div className={classe} ref={bookRef}>
+    <div className={classe} ref={bookRef} style={estiloDaCapa(cor) as CSSProperties}>
       <BuscaCaderno
         mesaId={mesaId}
         cfg={cfg}
@@ -831,7 +872,16 @@ export function Caderno({
 
                 {escreveVisivel && (
                   <div className="cad-escrever" style={{ left: escreveX, width: dim.pw - 2 * PAD_X }}>
-                    <h3>{rotuloEscrever}</h3>
+                    <h3>
+                      <SeletorSessao
+                        mesaId={mesaId}
+                        sessoes={todasSessoes}
+                        valor={sessaoEscrever}
+                        aoMudar={setSessaoEscolhida}
+                        aoRegistrar={adicionarSessao}
+                        className="cad-sessao-sel"
+                      />
+                    </h3>
                     <input
                       className="cad-titulo-campo"
                       type="text"
@@ -993,6 +1043,59 @@ export function Caderno({
             aria-valuetext={`Página ${Math.max(1, pag - off + 1)} de ${paginas}`}
           />
           <span>{paginas}</span>
+        </div>
+      )}
+
+      {!somenteLeitura && <CorDaCapa cor={cor} aoEscolher={escolherCor} />}
+    </div>
+  );
+}
+
+// Botão "Capa" embaixo do livro: paleta de capas de caderno e um seletor livre.
+function CorDaCapa({ cor, aoEscolher }: { cor: string; aoEscolher: (cor: string, esperar?: number) => void }) {
+  const [aberta, setAberta] = useState(false);
+  const raiz = useRef<HTMLDivElement>(null);
+
+  // Clicar fora ou Esc fecha.
+  useEffect(() => {
+    if (!aberta) return;
+    const fora = (e: PointerEvent) => {
+      if (!raiz.current?.contains(e.target as Node)) setAberta(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setAberta(false);
+    document.addEventListener("pointerdown", fora);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", fora);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [aberta]);
+
+  const amostra = (c: string) => ({ "--amostra": c }) as CSSProperties;
+  return (
+    <div className="cad-barra cad-barra--capa" ref={raiz}>
+      <button type="button" className="cad-capa-botao" aria-expanded={aberta} aria-haspopup="true" onClick={() => setAberta((v) => !v)}>
+        <span className="cad-capa-amostra" style={amostra(cor)} />
+        Cor da capa
+      </button>
+      {aberta && (
+        <div className="cad-capa-paleta" role="group" aria-label="Cor da capa do caderno">
+          {CAPAS.map((c) => (
+            <button
+              key={c.cor}
+              type="button"
+              className="cad-capa-opcao"
+              style={amostra(c.cor)}
+              title={c.nome}
+              aria-label={c.nome}
+              aria-pressed={c.cor === cor}
+              onClick={() => aoEscolher(c.cor)}
+            />
+          ))}
+          <label className="cad-capa-livre">
+            Outra cor
+            <input type="color" value={cor} onChange={(e) => aoEscolher(e.target.value, 500)} aria-label="Escolher outra cor para a capa" />
+          </label>
         </div>
       )}
     </div>
