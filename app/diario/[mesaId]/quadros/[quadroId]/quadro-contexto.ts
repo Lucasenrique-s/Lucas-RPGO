@@ -35,9 +35,19 @@ export type CtxQuadro = {
   editandoId: string | null;
   editar: (id: string | null) => void;
   salvarTexto: (id: string, texto: string) => void;
+  iniciarTamanho: (id: string) => void;
   salvarTamanho: (id: string, g: { x: number; y: number; largura: number; altura: number }) => void;
   mudarCor: (ids: string[], cor: CorCartao) => void;
   formatar: (ids: string[], formato: FormatoTexto) => void;
+  // Só o narrador, no quadro da mesa: ocultar (cadeado) e revelar (registra a sessão).
+  podeOcultar: boolean;
+  ocultar: (ids: string[], oculto: boolean) => void;
+  ocultarLigacao: (id: string, oculto: boolean) => void;
+  // Modo investigação: o fio fora do destaque some (inclusive o rótulo).
+  ligacaoEsmaecida: (id: string) => boolean;
+  // Mapa: quadro com imagem de fundo, onde post-it e página viram alfinete.
+  temMapa: boolean;
+  alfinete: (id: string, sim: boolean) => void;
   apagar: (ids: string[]) => void;
   duplicar: (ids: string[]) => void;
   abrirReferencia: (cartao: CartaoDTO) => void;

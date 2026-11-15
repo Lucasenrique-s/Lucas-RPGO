@@ -10,6 +10,7 @@ import {
   podeEditarQuadro,
   podeEnviarParaMesa,
   podeOcultarNoQuadro,
+  podeRestaurarCartao,
   podeRestaurarDaLixeira,
   podeVerCartao,
   podeVerLigacao,
@@ -145,6 +146,22 @@ describe("lixeira", () => {
     assert.equal(podeRestaurarDaLixeira(ana, daAna), true);
     assert.equal(podeRestaurarDaLixeira(bia, daAna, "ver"), false);
     assert.equal(podeRestaurarDaLixeira(bia, daAna, "editar"), true);
+  });
+
+  it("quem apagou restaura o seu (Ctrl+Z), mesmo no quadro da mesa; o dos outros, só o narrador", () => {
+    const meu = { oculto: false, apagadoPor: "ana" };
+    const dele = { oculto: false, apagadoPor: "bia" };
+    assert.equal(podeRestaurarCartao(ana, mesa, meu), true);
+    assert.equal(podeRestaurarCartao(ana, mesa, dele), false);
+    assert.equal(podeRestaurarCartao(narrador, mesa, dele), true);
+    // Quadro pessoal: quem só pode ver não restaura nem o que apagou antes de perder o acesso.
+    assert.equal(podeRestaurarCartao(bia, daAna, { oculto: false, apagadoPor: "bia" }, "ver"), false);
+    assert.equal(podeRestaurarCartao(bia, daAna, { oculto: false, apagadoPor: "ana" }, "editar"), true);
+  });
+
+  it("cartão oculto apagado só o narrador restaura", () => {
+    assert.equal(podeRestaurarCartao(ana, mesa, { oculto: true, apagadoPor: "ana" }), false);
+    assert.equal(podeRestaurarCartao(narrador, mesa, { oculto: true, apagadoPor: "ana" }), true);
   });
 
   it("vence depois de N dias", () => {

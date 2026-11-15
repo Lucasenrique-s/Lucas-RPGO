@@ -86,3 +86,14 @@ export function acharLugarLivre(r: Retangulo, ocupados: Retangulo[], folga = 24,
   }
   return r;
 }
+
+// Onde pôr um grupo de cartões vindo de outro quadro: à direita do que já existe, com o topo alinhado (mantendo
+// a posição relativa entre eles). Quadro de destino vazio: fica onde estava.
+export function deslocamentoParaColar(origem: Retangulo[], destino: Retangulo[], folga = 120): Ponto {
+  if (origem.length === 0 || destino.length === 0) return { x: 0, y: 0 };
+  const origemX = Math.min(...origem.map((r) => r.x));
+  const origemY = Math.min(...origem.map((r) => r.y));
+  const destinoDireita = Math.max(...destino.map((r) => r.x + r.largura));
+  const destinoTopo = Math.min(...destino.map((r) => r.y));
+  return { x: destinoDireita + folga - origemX, y: destinoTopo - origemY };
+}

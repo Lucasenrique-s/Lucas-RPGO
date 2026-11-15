@@ -415,9 +415,10 @@
     top: auto;
     left: 8px;
     right: 8px;
-    bottom: 8px;
+    /* Acima da barra de ferramentas, que continua à mão. */
+    bottom: 68px;
     width: auto;
-    height: 52vh;
+    height: 46vh;
     transform: translateY(calc(100% + 24px));
   }
   .qg--aberta {
@@ -978,3 +979,787 @@
 [data-cor-texto="laranja"] { color: color-mix(in srgb, var(--color-power) 85%, var(--text-main)); }
 [data-cor-texto="roxo"] { color: color-mix(in srgb, var(--color-livre) 85%, var(--text-main)); }
 [data-cor-texto="cinza"] { color: var(--text-sec); }
+
+/* ─── Tempo real: presença, cursores e lixeira ──────────────────────────── */
+.qt-direita {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.qp {
+  display: flex;
+  align-items: center;
+  padding: 3px 3px 3px 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--text-main) 10%, transparent);
+}
+.qp-avatar {
+  width: 30px;
+  height: 30px;
+  margin-left: -6px;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  background: color-mix(in srgb, var(--c, var(--text-sec)) 85%, var(--text-main));
+  border: 2px solid var(--bg-card);
+  border-radius: 50%;
+}
+.qp-mais {
+  margin: 0 6px 0 4px;
+  font-size: 0.78rem;
+  color: var(--text-sec);
+}
+.qc {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4000;
+  transform-origin: 0 0;
+  pointer-events: none;
+  transition: transform 0.07s linear;
+}
+.qc svg {
+  display: block;
+  filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--text-main) 35%, transparent));
+}
+.qc-nome {
+  position: absolute;
+  top: 16px;
+  left: 12px;
+  padding: 1px 8px;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  background: color-mix(in srgb, var(--c, var(--text-sec)) 85%, var(--text-main));
+  border-radius: 999px;
+}
+.ql {
+  position: relative;
+}
+.ql-painel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(360px, calc(100vw - 24px));
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--text-main) 22%, transparent);
+  overflow: hidden;
+}
+.ql-topo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.ql-topo small {
+  flex: 1;
+  color: var(--text-sec);
+}
+.ql-fechar {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  color: var(--text-sec);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.ql-vazio {
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+  color: var(--text-sec);
+}
+.ql-lista {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+}
+.ql-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 10px;
+}
+.ql-item:hover {
+  background: var(--bg-surface, var(--bg-page));
+}
+.ql-icone {
+  flex: none;
+  width: 22px;
+  text-align: center;
+  color: var(--text-sec);
+}
+.ql-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ql-texto b {
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ql-texto small {
+  color: var(--text-sec);
+  font-size: 0.72rem;
+}
+.ql-restaurar {
+  flex: none;
+  padding: 5px 10px;
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.ql-restaurar:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+@media (max-width: 720px) {
+  .ql-rotulo {
+    display: none;
+  }
+}
+
+/* ─── Oculto e revelado (quadro da mesa) ────────────────────────────────── */
+.react-flow__node.qn-oculto .qn {
+  outline: 2px dashed color-mix(in srgb, var(--text-sec) 80%, transparent);
+  outline-offset: 3px;
+  opacity: 0.72;
+}
+.react-flow__node.qn-oculto.selected .qn {
+  outline-style: solid;
+  outline-color: var(--primary);
+}
+.qn-selo {
+  position: absolute;
+  top: -11px;
+  left: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  pointer-events: none;
+}
+.qn-selo--oculto {
+  color: var(--on-primary, #fff);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.qn-selo--revelado {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.react-flow__node:hover .qn-selo--revelado,
+.react-flow__node.selected .qn-selo--revelado {
+  opacity: 1;
+}
+
+/* ─── Compartilhar ──────────────────────────────────────────────────────── */
+.qs {
+  position: relative;
+}
+.qs-painel {
+  width: min(380px, calc(100vw - 24px));
+}
+.qs-avatar {
+  flex: none;
+  margin-left: 0;
+}
+.qs-nivel {
+  flex: none;
+  background: var(--bg-surface, var(--bg-card));
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 0.82rem;
+}
+.qs-nota {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-sec);
+}
+
+/* ─── Enviar para o quadro da mesa ──────────────────────────────────────── */
+.qe-barra {
+  position: absolute;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px 7px 14px;
+  max-width: calc(100vw - 24px);
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--text-main) 18%, transparent);
+  font-size: 0.85rem;
+}
+.qe-btn,
+.qe-sec {
+  padding: 7px 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.qe-btn {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+  border: 1px solid var(--primary);
+}
+.qe-sec {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border);
+}
+.qe-btn:disabled,
+.qe-sec:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.qe-fundo {
+  align-items: center;
+  padding-top: 0;
+}
+.qe-caixa {
+  width: min(520px, 100%);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+}
+.qe-cab {
+  padding: 14px 16px 6px;
+}
+.qe-cab p {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-sec);
+}
+.qe-corpo {
+  padding: 8px 16px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+.qe-corpo p {
+  margin: 8px 0;
+}
+.qe-corpo p > i {
+  width: 18px;
+  color: var(--text-sec);
+}
+.qe-aviso {
+  color: var(--text-main);
+}
+.qe-privados {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-surface, var(--bg-page));
+}
+.qe-privados ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qe-privados li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.qe-privados li > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qe-privados small {
+  color: var(--text-sec);
+}
+.qe-escolha {
+  flex: none;
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.qe-escolha button {
+  padding: 4px 10px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 0;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.qe-escolha button[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+}
+.qe-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px 14px;
+}
+
+/* ─── Formas de olhar o quadro ──────────────────────────────────────────── */
+.qv {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 24px);
+}
+.qv-barra {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--text-main) 10%, transparent);
+}
+.qv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: transparent;
+  color: var(--text-main);
+  border: 0;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.qv-btn:hover {
+  background: var(--bg-surface, var(--bg-page));
+}
+.qv-btn--on,
+.qv-btn--on:hover {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+}
+.qv-painel {
+  width: min(340px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--text-main) 20%, transparent);
+}
+.qv-painel p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-sec);
+}
+.qv-campo {
+  background: var(--bg-surface, var(--bg-card));
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+}
+.qv-lista,
+.qv-legenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.qv-lista button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  background: transparent;
+  color: var(--text-main);
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.qv-lista button:hover {
+  background: var(--bg-surface, var(--bg-page));
+}
+.qv-lista button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qv-lista i {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  color: var(--text-sec);
+}
+.qv-vazio {
+  padding: 8px;
+  color: var(--text-sec);
+  font-size: 0.82rem;
+}
+.qv-faixa {
+  width: 100%;
+  accent-color: var(--primary);
+}
+.qv-faixa-rotulos {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-sec);
+}
+.qv-legenda li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+.qv-bolinha {
+  margin-left: 0;
+  width: 26px;
+  height: 26px;
+}
+.qv-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.qv-link {
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.qv-link--cheio {
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+  border-color: var(--primary);
+}
+.qv-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.qt-invest {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 8px 8px 14px;
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--text-main) 22%, transparent);
+}
+.qt-invest button {
+  flex: none;
+  padding: 3px 10px;
+  background: transparent;
+  color: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 50%, transparent);
+  border-radius: 999px;
+  font: inherit;
+  cursor: pointer;
+}
+.qt-camada {
+  position: absolute;
+  left: 12px;
+  bottom: 44px;
+  z-index: 5;
+  padding: 7px 12px;
+  background: var(--primary);
+  color: var(--on-primary, #fff);
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--text-main) 22%, transparent);
+}
+
+/* Modo investigação: o que não se liga some; o caminho se destaca */
+.react-flow__node.qn-esmaecido {
+  opacity: 0.12;
+}
+.react-flow__node.qn-destaque .qn {
+  outline: 2px solid color-mix(in srgb, var(--primary) 60%, transparent);
+  outline-offset: 3px;
+}
+.react-flow__node.qn-foco .qn {
+  outline: 3px solid var(--primary);
+  outline-offset: 4px;
+}
+.react-flow__edge.qa-esmaecida {
+  opacity: 0.08;
+}
+.react-flow__edge.qa-destaque .react-flow__edge-path {
+  stroke-width: 4.5px !important;
+}
+.qt-canvas--investigando .react-flow__node {
+  cursor: pointer;
+}
+.react-flow__node.qn-achado .qn {
+  outline: 3px solid var(--highlight, var(--primary));
+  outline-offset: 4px;
+}
+
+/* Cor por autor: uma tira na borda do cartão com a cor da pessoa */
+[data-autor="amarelo"] { --ca: var(--color-bonus); }
+[data-autor="rosa"] { --ca: color-mix(in srgb, var(--danger) 60%, var(--color-livre)); }
+[data-autor="verde"] { --ca: var(--color-success); }
+[data-autor="azul"] { --ca: var(--info); }
+[data-autor="laranja"] { --ca: var(--color-power); }
+[data-autor="roxo"] { --ca: var(--color-livre); }
+.qt-canvas--autor .qn[data-autor]:not(.qn-alfinete)::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 8px;
+  bottom: 8px;
+  width: 6px;
+  border-radius: 6px;
+  background: var(--ca, var(--text-sec));
+  z-index: 2;
+  pointer-events: none;
+}
+.qt-canvas--autor .qn-alfinete .qn-pino {
+  color: var(--ca, var(--text-sec)) !important;
+}
+
+/* Mapa e alfinetes */
+.react-flow__node.qn-mapa-no {
+  pointer-events: none !important;
+}
+.qn-mapa {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+  border-radius: 6px;
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--text-main) 18%, transparent);
+}
+.qn-alfinete {
+  overflow: visible;
+}
+.qn-pino {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 40px;
+  line-height: 1;
+  color: var(--c, var(--primary));
+  filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--text-main) 40%, transparent));
+}
+.qn-alfinete-rotulo {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 2px;
+  max-width: 240px;
+  padding: 1px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.78rem;
+  color: var(--text-main);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--text-main) 15%, transparent);
+}
+.qn-alfinete-rotulo .qn-entrada {
+  width: 130px;
+  height: 1.4em;
+}
+
+/* Menu do toque longo */
+.qm-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+.qm {
+  position: absolute;
+  padding: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 34px color-mix(in srgb, var(--text-main) 28%, transparent);
+}
+.qm-titulo {
+  padding: 4px 10px 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-sec);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  background: transparent;
+  color: var(--text-main);
+  border: 0;
+  border-radius: 10px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.qm-item i {
+  width: 20px;
+  text-align: center;
+  color: var(--text-sec);
+}
+.qm-item:hover,
+.qm-item:active {
+  background: var(--bg-surface, var(--bg-page));
+}
+.qm-item--perigo,
+.qm-item--perigo i {
+  color: var(--danger);
+}
+
+/* Celular */
+@media (max-width: 720px) {
+  .qt-titulo {
+    max-width: calc(100vw - 230px);
+  }
+  .qv {
+    top: 84px;
+    left: 8px;
+    right: 8px;
+    transform: none;
+    align-items: stretch;
+  }
+  .qv-barra {
+    align-self: center;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .qv-btn {
+    padding: 9px 11px;
+  }
+  .qv-btn span {
+    display: none;
+  }
+  .qv-painel {
+    width: auto;
+  }
+  .qt-invest {
+    top: 136px;
+    border-radius: 14px;
+  }
+  .qt-camada {
+    bottom: 72px;
+  }
+  .qn-minibarra {
+    max-width: calc(100vw - 16px);
+  }
+  .qn-fmt {
+    max-width: calc(100vw - 24px);
+  }
+  .qn-mb-btn,
+  .qn-cor,
+  .qa-btn {
+    min-width: 34px;
+    min-height: 34px;
+  }
+  .qa-barra {
+    flex-wrap: wrap;
+    max-width: calc(100vw - 24px);
+    white-space: normal;
+  }
+  .qe-barra {
+    bottom: 80px;
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: 16px;
+  }
+}
+
+/* Telas médias: só os ícones nas barras de cima, pra não se atropelarem */
+@media (max-width: 1200px) {
+  .qv-btn span,
+  .ql-rotulo {
+    display: none;
+  }
+}

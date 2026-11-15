@@ -9,8 +9,10 @@ import { normalizarTipoFicha } from "@/lib/diario-tipos";
 import {
   filtroListaQuadros,
   permissoesDoQuadro,
+  podeRestaurarCartao,
   type AcessoQuadro,
   type Compartilhado,
+  type QuadroPermissao,
 } from "@/lib/diario-quadro-permissao";
 import {
   LIMITES_QUADRO,
@@ -24,6 +26,12 @@ import {
   ehTracoLigacao,
   type CartaoDTO,
   type ConteudoQuadroDTO,
+  type FundoQuadro,
+  type ItemLixeiraDTO,
+  type MudancasQuadroDTO,
+  type RefNotaDTO,
+  type RefPaginaDTO,
+  type RefSessaoDTO,
   type LigacaoDTO,
   type PapelNoQuadro,
   type QuadroResumoDTO,
@@ -93,6 +101,8 @@ export async function carregarQuadros(mesaId: string, userId: string, opts?: { c
 }
 
 export type QuadroAbertoDTO = QuadroResumoDTO & {
+  // Imagem de fundo com o tamanho (o quadro vira mapa).
+  fundo: FundoQuadro;
   mesaNome: string;
   meuId: string;
   ehNarrador: boolean;
@@ -136,6 +146,7 @@ export async function carregarQuadro(mesaId: string, quadroId: string, userId: s
     fundoUrl: q.fundoUrl,
     atualizadoEm: q.atualizadoEm.toISOString(),
     permissoes,
+    fundo: q.fundoUrl && q.fundoLargura && q.fundoAltura ? { url: q.fundoUrl, largura: q.fundoLargura, altura: q.fundoAltura } : null,
     mesaNome: q.mesa.nome,
     meuId: acesso.userId,
     ehNarrador: acesso.narrador,
@@ -182,7 +193,7 @@ export const dtoCartaoDe = dtoCartao;
 
 export const dtoLigacaoDe = (l: {
   id: string; deId: string; paraId: string; rotulo: string; cor: string; traco: string; seta: boolean;
-  autorId: string; oculto: boolean;
+  autorId: string; oculto: boolean; reveladoSessaoId: string | null;
 }): LigacaoDTO => ({
   id: l.id,
   deId: l.deId,
@@ -193,6 +204,7 @@ export const dtoLigacaoDe = (l: {
   seta: l.seta,
   autorId: l.autorId,
   oculto: l.oculto,
+  reveladoSessaoId: l.reveladoSessaoId,
 });
 
 // Cartões e ligações de um quadro que a pessoa pode ver, e o que eles referenciam (só o que ela pode ler).
@@ -201,6 +213,7 @@ export async function carregarConteudoQuadro(
   quadroId: string,
   acesso: AcessoDiario,
 ): Promise<ConteudoQuadroDTO> {
+  const agora = new Date().toISOString();
   // Lixeira: o que passou do prazo some de vez. Falha aqui não impede abrir o quadro.
   const limite = new Date(Date.now() - LIMITES_QUADRO.lixeiraDias * 86_400_000);
   await prisma.diarioCartao.deleteMany({ where: { quadroId, apagadoEm: { lt: limite } } }).catch(() => {});
@@ -232,6 +245,7 @@ export async function carregarConteudoQuadro(
 
   const sessaoAtual = sessoes.find((s) => s.encerradaEm === null) ?? sessoes[0] ?? null;
   return {
+    agora,
     cartoes: cartoes.map(dtoCartao),
     ligacoes: ligacoes.filter((l) => idsCartao.has(l.deId) && idsCartao.has(l.paraId)).map(dtoLigacaoDe),
     paginas: fichas.map((f) => ({
@@ -260,7 +274,121 @@ export async function carregarConteudoQuadro(
       titulo: s.titulo,
       ativa: s.encerradaEm === null,
       iniciadaEm: s.iniciadaEm.toISOString(),
+      retroativa: s.retroativa,
     })),
     sessaoAtualId: sessaoAtual?.id ?? null,
   };
+}
+
+// ─── Mudanças desde um instante (sincronia entre quem está no quadro) ──────
+
+const dtoPagina = (f: {
+  id: string; nome: string; tipo: string; resumo: string; visibilidade: string; autorId: string; retratoUrl: string | null;
+  retratos: { url: string }[];
+}): RefPaginaDTO => ({
+  id: f.id,
+  nome: f.nome,
+  tipo: normalizarTipoFicha(f.tipo),
+  fotoUrl: f.retratos[0]?.url ?? f.retratoUrl ?? null,
+  previa: previa(f.resumo, 220),
+  visibilidade: f.visibilidade,
+  autorId: f.autorId,
+});
+
+const dtoNota = (n: {
+  id: string; titulo: string | null; corpo: string; sessaoId: string | null; autorId: string; visibilidade: string; criadaEm: Date;
+}): RefNotaDTO => ({
+  id: n.id,
+  titulo: n.titulo,
+  previa: previa(n.corpo, 240),
+  sessaoId: n.sessaoId,
+  autorId: n.autorId,
+  visibilidade: n.visibilidade,
+  criadaEm: n.criadaEm.toISOString(),
+});
+
+const dtoSessao = (s: { id: string; numero: number | null; titulo: string | null; encerradaEm: Date | null; iniciadaEm: Date; retroativa: boolean }): RefSessaoDTO => ({
+  id: s.id,
+  numero: s.numero,
+  titulo: s.titulo,
+  ativa: s.encerradaEm === null,
+  iniciadaEm: s.iniciadaEm.toISOString(),
+  retroativa: s.retroativa,
+});
+
+// As páginas, anotações e sessões que estes cartões apontam (só o que a pessoa pode ler).
+async function referenciasDe(
+  mesaId: string,
+  acesso: AcessoDiario,
+  cartoes: { tipo: string; refId: string | null }[],
+): Promise<Pick<MudancasQuadroDTO, "paginas" | "notas" | "sessoes">> {
+  const ids = (tipo: string) => [...new Set(cartoes.filter((c) => c.tipo === tipo && c.refId).map((c) => c.refId as string))];
+  const [fichaIds, notaIds, sessaoIds] = [ids("pagina"), ids("nota"), ids("sessao")];
+  const [fichas, notas, sessoes] = await Promise.all([
+    fichaIds.length
+      ? prisma.diarioFicha.findMany({
+          where: { mesaId, id: { in: fichaIds }, ...filtroLeituraDiario(acesso) },
+          include: { retratos: { orderBy: { ordem: "asc" }, take: 1 } },
+        })
+      : [],
+    notaIds.length ? prisma.diarioNota.findMany({ where: { mesaId, id: { in: notaIds } } }) : [],
+    sessaoIds.length ? prisma.sessao.findMany({ where: { mesaId, id: { in: sessaoIds } } }) : [],
+  ]);
+  return {
+    paginas: fichas.map(dtoPagina),
+    notas: notas.filter((n) => podeLerDiario(acesso, n)).map(dtoNota),
+    sessoes: sessoes.map(dtoSessao),
+  };
+}
+
+// O que mudou no quadro depois de `desde`, já filtrado pelo que esta pessoa pode ver. Cartão apagado, ou que
+// virou oculto para quem não é narrador, volta em `removidos`. O cliente pede de novo a partir de `agora`.
+export async function mudancasDesde(mesaId: string, quadroId: string, acesso: AcessoDiario, desde: Date): Promise<MudancasQuadroDTO> {
+  const agora = new Date();
+  const [cs, ls] = await Promise.all([
+    prisma.diarioCartao.findMany({ where: { quadroId, atualizadoEm: { gt: desde } } }),
+    prisma.diarioLigacao.findMany({ where: { quadroId, atualizadoEm: { gt: desde } } }),
+  ]);
+  const visivel = (c: { apagadoEm: Date | null; oculto: boolean }) => !c.apagadoEm && (acesso.narrador || !c.oculto);
+  const cartoes = cs.filter(visivel);
+  const removidos = cs.filter((c) => !visivel(c)).map((c) => c.id);
+
+  // Uma ligação só aparece se as duas pontas aparecem.
+  const pontas = new Set(ls.flatMap((l) => [l.deId, l.paraId]));
+  const conhecidas = new Map(cs.map((c) => [c.id, visivel(c)]));
+  const faltam = [...pontas].filter((id) => !conhecidas.has(id));
+  if (faltam.length > 0) {
+    const outras = await prisma.diarioCartao.findMany({ where: { quadroId, id: { in: faltam } }, select: { id: true, oculto: true, apagadoEm: true } });
+    for (const c of outras) conhecidas.set(c.id, visivel(c));
+  }
+  const ligacaoVisivel = (l: (typeof ls)[number]) => !l.apagadoEm && (acesso.narrador || !l.oculto) && conhecidas.get(l.deId) === true && conhecidas.get(l.paraId) === true;
+
+  const refs = await referenciasDe(mesaId, acesso, cartoes);
+  const q = await prisma.diarioQuadro.findUnique({ where: { id: quadroId }, select: { fundoUrl: true, fundoLargura: true, fundoAltura: true } });
+  return {
+    agora: agora.toISOString(),
+    fundo: q?.fundoUrl && q.fundoLargura && q.fundoAltura ? { url: q.fundoUrl, largura: q.fundoLargura, altura: q.fundoAltura } : null,
+    cartoes: cartoes.map(dtoCartao),
+    removidos,
+    ligacoes: ls.filter(ligacaoVisivel).map(dtoLigacaoDe),
+    ligacoesRemovidas: ls.filter((l) => !ligacaoVisivel(l)).map((l) => l.id),
+    ...refs,
+  };
+}
+
+// ─── Lixeira ───────────────────────────────────────────────────────────────
+
+export async function listarLixeira(quadroId: string, acesso: AcessoDiario, q: QuadroPermissao, comp: Compartilhado): Promise<ItemLixeiraDTO[]> {
+  const linhas = await prisma.diarioCartao.findMany({
+    where: { quadroId, apagadoEm: { not: null }, ...(acesso.narrador ? {} : { oculto: false }) },
+    orderBy: { apagadoEm: "desc" },
+    take: 200,
+  });
+  return linhas.map((c) => ({
+    cartao: dtoCartao(c),
+    apagadoEm: (c.apagadoEm as Date).toISOString(),
+    apagadoPor: c.apagadoPor,
+    venceEm: new Date((c.apagadoEm as Date).getTime() + LIMITES_QUADRO.lixeiraDias * 86_400_000).toISOString(),
+    podeRestaurar: podeRestaurarCartao(acesso, q, c, comp),
+  }));
 }

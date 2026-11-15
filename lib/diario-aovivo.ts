@@ -25,3 +25,24 @@ export async function avisarDiario(mesaId: string, aviso: AvisoDiario): Promise<
     console.warn("[diario] broadcast falhou:", e instanceof Error ? e.message : e);
   }
 }
+
+// Quadros: um canal por quadro (`diario-quadro-<id>`), também só com aviso sem conteúdo. Quem recebe pergunta ao
+// servidor o que mudou (e o servidor filtra pelo que cada pessoa pode ver). Cursores e arrasto vão direto entre
+// os navegadores pelo mesmo canal, só com posições.
+export async function avisarQuadro(quadroId: string): Promise<void> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const chave = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !chave) return;
+  try {
+    await fetch(`${url}/realtime/v1/api/broadcast`, {
+      method: "POST",
+      headers: { apikey: chave, Authorization: `Bearer ${chave}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ topic: `diario-quadro-${quadroId}`, event: "mudou", payload: {}, private: false }],
+      }),
+      signal: AbortSignal.timeout(4000),
+    });
+  } catch (e) {
+    console.warn("[diario] broadcast do quadro falhou:", e instanceof Error ? e.message : e);
+  }
+}

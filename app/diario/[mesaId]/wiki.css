@@ -685,3 +685,48 @@ h4.wk-sec--linha {
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+/* "Adicionar ao quadro", na página da wiki */
+.aq {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.aq-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--text-main) 18%, transparent);
+}
+.aq-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--text-main);
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.aq-menu button:hover {
+  background: var(--bg-surface, var(--bg-page));
+}
+.aq-feito {
+  font-size: 0.8rem;
+  color: var(--text-sec);
+}
+.aq-feito a {
+  color: var(--primary);
+}

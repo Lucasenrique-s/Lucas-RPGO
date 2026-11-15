@@ -36,6 +36,8 @@ import {
   revelarFichaDiario,
 } from "./actions";
 import { NovaRelacao } from "./relacao-editor";
+import { AdicionarAoQuadro } from "./adicionar-ao-quadro";
+import type { QuadroResumoDTO } from "@/lib/diario-quadro-tipos";
 import "./wiki.css";
 
 const tipoDe = (t: TipoFichaDiario) => TIPOS_FICHA.find((x) => x.id === t);
@@ -64,6 +66,7 @@ export function Wiki({
   relacoes,
   autores,
   participantes,
+  quadros,
   contexto,
   refs,
   cfg,
@@ -87,6 +90,8 @@ export function Wiki({
   autores: Record<string, string>;
   // Quem mais está na mesa (pra escolher editores).
   participantes: { id: string; nome: string }[];
+  // Quadros onde a pessoa pode pendurar a página (sem lista, o botão não aparece).
+  quadros?: QuadroResumoDTO[];
   contexto: ContextoRico;
   // O que o @ e o [[ ]] oferecem no editor da biografia.
   refs: OpcaoRef[];
@@ -155,6 +160,7 @@ export function Wiki({
           relacoes={relacoes}
           autores={autores}
           participantes={participantes}
+          quadros={quadros}
           contexto={contexto}
           refs={refs}
           cfg={cfg}
@@ -256,6 +262,7 @@ function PaginaWiki({
   relacoes,
   autores,
   participantes,
+  quadros,
   contexto,
   refs,
   cfg,
@@ -279,6 +286,7 @@ function PaginaWiki({
   relacoes: RelacaoDTO[];
   autores: Record<string, string>;
   participantes: { id: string; nome: string }[];
+  quadros?: QuadroResumoDTO[];
   contexto: ContextoRico;
   refs: OpcaoRef[];
   cfg: ConfigMencao;
@@ -422,6 +430,7 @@ function PaginaWiki({
                   <i className="fas fa-pen" /> Editar
                 </button>
               )}
+              {!somenteLeitura && !oculta && quadros && <AdicionarAoQuadro mesaId={mesaId} fichaId={ficha.id} quadros={quadros} />}
               {!somenteLeitura && !oculta && (
                 <button type="button" aria-expanded={historico} onClick={() => setHistorico((v) => !v)}>
                   <i className="fas fa-clock-rotate-left" /> Histórico

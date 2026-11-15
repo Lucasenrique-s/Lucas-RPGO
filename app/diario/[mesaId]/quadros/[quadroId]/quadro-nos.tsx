@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Handle, NodeResizer, NodeToolbar, Position, type NodeProps } from "@xyflow/react";
-import { TIPOS_FICHA, rotuloSessao } from "@/lib/diario-tipos";
+import { Handle, NodeResizer, NodeToolbar, Position, type Node, type NodeProps } from "@xyflow/react";
+import { corDaPessoa } from "@/lib/diario-quadro-presenca";
+import { TIPOS_FICHA, dataDaSessao, rotuloSessao } from "@/lib/diario-tipos";
 import { CORES_CARTAO, CORES_TEXTO, FONTE_MAX, FONTE_MIN, FONTE_PADRAO, type Alinhamento, type CartaoDTO } from "@/lib/diario-quadro-tipos";
 import { useQuadro, type NoCartao } from "./quadro-contexto";
 
@@ -75,6 +76,30 @@ function MiniBarra({ cartao, comCor }: { cartao: CartaoDTO; comCor: boolean }) {
       {ref && (
         <button type="button" className="qn-mb-btn" title="Abrir no diário" aria-label="Abrir no diário" onClick={() => ctx.abrirReferencia(cartao)}>
           <i className="fas fa-arrow-up-right-from-square" />
+        </button>
+      )}
+      {ctx.podeEditar && ctx.temMapa && (cartao.tipo === "postit" || cartao.tipo === "pagina") && (
+        <button
+          type="button"
+          className={`qn-mb-btn${cartao.formato === "alfinete" ? " qn-mb-btn--on" : ""}`}
+          title={cartao.formato === "alfinete" ? "Voltar a ser cartão" : "Virar alfinete no mapa"}
+          aria-label={cartao.formato === "alfinete" ? "Voltar a ser cartão" : "Virar alfinete"}
+          aria-pressed={cartao.formato === "alfinete"}
+          onClick={() => ctx.alfinete(cartao.id, cartao.formato !== "alfinete")}
+        >
+          <i className="fas fa-location-dot" />
+        </button>
+      )}
+      {ctx.podeOcultar && (
+        <button
+          type="button"
+          className={`qn-mb-btn${cartao.oculto ? " qn-mb-btn--on" : ""}`}
+          title={cartao.oculto ? "Revelar à mesa (registra a sessão)" : "Ocultar da mesa (só o narrador vê)"}
+          aria-label={cartao.oculto ? "Revelar à mesa" : "Ocultar da mesa"}
+          aria-pressed={cartao.oculto}
+          onClick={() => ctx.ocultar([cartao.id], !cartao.oculto)}
+        >
+          <i className={`fas ${cartao.oculto ? "fa-lock" : "fa-lock-open"}`} />
         </button>
       )}
       {ctx.podeEditar && (
@@ -174,6 +199,7 @@ function Redimensionar({ cartao, selected, proporcional = false, min = [80, 40] 
       keepAspectRatio={proporcional}
       lineClassName="qn-resize-linha"
       handleClassName="qn-resize-ponto"
+      onResizeStart={() => ctx.iniciarTamanho(cartao.id)}
       onResizeEnd={(_, p) => ctx.salvarTamanho(cartao.id, { x: p.x, y: p.y, largura: p.width, altura: p.height })}
     />
   );
@@ -244,6 +270,52 @@ function EditorTexto({ cartao, classe, placeholder, linhaUnica }: { cartao: Cart
   );
 }
 
+// Cadeado (só o narrador vê o cartão oculto) e "revelado na Sessão N" (aparece ao passar o mouse ou selecionar).
+function Selos({ cartao }: { cartao: CartaoDTO }) {
+  const ctx = useQuadro();
+  if (cartao.oculto) {
+    return (
+      <span className="qn-selo qn-selo--oculto" title="Oculto: só o narrador vê este cartão">
+        <i className="fas fa-lock" /> Oculto
+      </span>
+    );
+  }
+  const s = cartao.reveladoSessaoId ? ctx.sessoes.get(cartao.reveladoSessaoId) : undefined;
+  if (!s) return null;
+  const nome = s.numero != null ? `Sessão ${s.numero}` : rotuloSessao(s);
+  return (
+    <span className="qn-selo qn-selo--revelado" title={`O narrador revelou este cartão à mesa na ${nome}`}>
+      <i className="fas fa-eye" /> Revelado · {nome}
+    </span>
+  );
+}
+
+// Alfinete (mapa): o cartão vira um pino com o nome embaixo. A ponta do pino é a base do nó (40 x 48).
+function Alfinete({ cartao, selected, rotulo, cor, editavel }: { cartao: CartaoDTO; selected: boolean | undefined; rotulo: string; cor?: string; editavel?: boolean }) {
+  const ctx = useQuadro();
+  return (
+    <div className="qn qn-alfinete" data-cor={cartao.cor} data-selecionado={selected || undefined} data-autor={corDaPessoa(cartao.autorId)}>
+      <MiniBarra cartao={cartao} comCor={cartao.tipo === "postit"} />
+      <i className="fas fa-location-dot qn-pino" style={cor ? { color: cor } : undefined} aria-hidden />
+      <div className="qn-alfinete-rotulo">
+        {editavel ? (
+          <TextoEditavel cartao={cartao} classe="qn-alfinete-texto" placeholder="Alfinete" linhaUnica />
+        ) : (
+          <span onDoubleClick={() => ctx.abrirReferencia(cartao)}>{rotulo}</span>
+        )}
+      </div>
+      <Alcas />
+      <Selos cartao={cartao} />
+    </div>
+  );
+}
+
+// A imagem de fundo do quadro (o mapa). Fica atrás de tudo e não se mexe nem se seleciona.
+export function MapaNo({ data }: NodeProps<Node<{ url: string }>>) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img className="qn-mapa" src={data.url} alt="Mapa do quadro" draggable={false} />;
+}
+
 function Autor({ cartao }: { cartao: CartaoDTO }) {
   const ctx = useQuadro();
   const nome = cartao.autorId === ctx.meuId ? "Você" : (ctx.autores[cartao.autorId] ?? "Jogador");
@@ -253,13 +325,15 @@ function Autor({ cartao }: { cartao: CartaoDTO }) {
 /* ─── Post-it ─── */
 export function PostitNo({ data, selected }: NodeProps<NoCartao>) {
   const c = data.cartao;
+  if (c.formato === "alfinete") return <Alfinete cartao={c} selected={selected} rotulo={c.texto} editavel />;
   return (
-    <div className="qn qn-postit" data-cor={c.cor} data-selecionado={selected || undefined}>
+    <div className="qn qn-postit" data-cor={c.cor} data-selecionado={selected || undefined} data-autor={corDaPessoa(c.autorId)}>
       <Redimensionar cartao={c} selected={selected} min={[120, 100]} />
       <MiniBarra cartao={c} comCor />
       <TextoEditavel cartao={c} classe="qn-postit-texto" placeholder="Duplo clique para escrever" />
       <Autor cartao={c} />
       <Alcas />
+      <Selos cartao={c} />
     </div>
   );
 }
@@ -268,11 +342,12 @@ export function PostitNo({ data, selected }: NodeProps<NoCartao>) {
 export function TextoSoltoNo({ data, selected }: NodeProps<NoCartao>) {
   const c = data.cartao;
   return (
-    <div className="qn qn-texto-solto" data-cor={c.cor} data-selecionado={selected || undefined}>
+    <div className="qn qn-texto-solto" data-cor={c.cor} data-selecionado={selected || undefined} data-autor={corDaPessoa(c.autorId)}>
       <Redimensionar cartao={c} selected={selected} min={[80, 32]} />
       <MiniBarra cartao={c} comCor={false} />
       <TextoEditavel cartao={c} classe="qn-texto-grande" placeholder="Duplo clique para escrever" />
       <Alcas />
+      <Selos cartao={c} />
     </div>
   );
 }
@@ -281,7 +356,7 @@ export function TextoSoltoNo({ data, selected }: NodeProps<NoCartao>) {
 export function MolduraNo({ data, selected }: NodeProps<NoCartao>) {
   const c = data.cartao;
   return (
-    <div className="qn qn-moldura" data-cor={c.cor} data-selecionado={selected || undefined}>
+    <div className="qn qn-moldura" data-cor={c.cor} data-selecionado={selected || undefined} data-autor={corDaPessoa(c.autorId)}>
       <Redimensionar cartao={c} selected={selected} min={[160, 120]} />
       <MiniBarra cartao={c} comCor />
       <div className="qn-moldura-cabeca">
@@ -294,6 +369,7 @@ export function MolduraNo({ data, selected }: NodeProps<NoCartao>) {
       <span className="qn-moldura-borda qn-moldura-borda--l" />
       <span className="qn-moldura-borda qn-moldura-borda--r" />
       <Alcas />
+      <Selos cartao={c} />
     </div>
   );
 }
@@ -302,7 +378,7 @@ export function MolduraNo({ data, selected }: NodeProps<NoCartao>) {
 export function ImagemNo({ data, selected }: NodeProps<NoCartao>) {
   const c = data.cartao;
   return (
-    <div className="qn qn-imagem" data-cor={c.cor} data-selecionado={selected || undefined}>
+    <div className="qn qn-imagem" data-cor={c.cor} data-selecionado={selected || undefined} data-autor={corDaPessoa(c.autorId)}>
       <Redimensionar cartao={c} selected={selected} proporcional min={[80, 60]} />
       <MiniBarra cartao={c} comCor={false} />
       <div className="qn-imagem-moldura">
@@ -315,6 +391,7 @@ export function ImagemNo({ data, selected }: NodeProps<NoCartao>) {
       </div>
       <TextoEditavel cartao={c} classe="qn-imagem-legenda" placeholder="Legenda" linhaUnica />
       <Alcas />
+      <Selos cartao={c} />
     </div>
   );
 }
@@ -335,7 +412,7 @@ function Referencia({ cartao, selected, icone, titulo, previa, rodape, foto, sem
   return (
     <div
       className={`qn qn-ref${semAcesso ? " qn-ref--sem-acesso" : ""}`}
-      data-selecionado={selected || undefined}
+      data-selecionado={selected || undefined} data-autor={corDaPessoa(cartao.autorId)}
       onDoubleClick={() => !semAcesso && ctx.abrirReferencia(cartao)}
     >
       <Redimensionar cartao={cartao} selected={selected} min={[180, 80]} />
@@ -354,6 +431,7 @@ function Referencia({ cartao, selected, icone, titulo, previa, rodape, foto, sem
         {rodape && <span className="qn-ref-rodape">{rodape}</span>}
       </span>
       <Alcas />
+      <Selos cartao={cartao} />
     </div>
   );
 }
@@ -363,6 +441,7 @@ export function PaginaNo({ data, selected }: NodeProps<NoCartao>) {
   const ctx = useQuadro();
   const p = c.refId ? ctx.paginas.get(c.refId) : undefined;
   const t = p ? tipoDaPagina(p.tipo) : undefined;
+  if (c.formato === "alfinete") return <Alfinete cartao={c} selected={selected} rotulo={p ? p.nome : "Página sem acesso"} cor={t?.cor} />;
   return (
     <Referencia
       cartao={c}
@@ -406,7 +485,7 @@ export function SessaoNo({ data, selected }: NodeProps<NoCartao>) {
       selected={selected}
       icone="fa-flag"
       titulo={s ? rotuloSessao(s) : "Sessão apagada"}
-      previa={s ? new Date(s.iniciadaEm).toLocaleDateString("pt-BR") : ""}
+      previa={s ? (dataDaSessao(s) ?? "") : ""}
       rodape={s?.ativa ? "ao vivo" : "Sessão"}
       semAcesso={!s}
     />

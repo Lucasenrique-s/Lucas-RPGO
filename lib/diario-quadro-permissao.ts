@@ -48,6 +48,17 @@ export const podeOcultarNoQuadro = (a: AcessoQuadro, q: QuadroPermissao) => daMe
 export const podeRestaurarDaLixeira = (a: AcessoQuadro, q: QuadroPermissao, comp: Compartilhado = null) =>
   daMesa(q) ? a.narrador : podeEditarQuadro(a, q, comp);
 
+// Restaurar um cartão em particular: quem pode restaurar em geral, ou quem o apagou (é o Ctrl+Z dele, mesmo no
+// quadro da mesa onde só o narrador mexe na lixeira). Cartão oculto continua sendo só do narrador.
+export const podeRestaurarCartao = (
+  a: AcessoQuadro,
+  q: QuadroPermissao,
+  c: ItemOculto & { apagadoPor: string | null },
+  comp: Compartilhado = null,
+) =>
+  podeVerCartao(a, c) &&
+  (podeRestaurarDaLixeira(a, q, comp) || (c.apagadoPor === a.userId && podeEditarQuadro(a, q, comp)));
+
 export const podeVerCartao = (a: AcessoQuadro, c: ItemOculto) => !c.oculto || a.narrador;
 
 export const podeEditarCartao = (a: AcessoQuadro, q: QuadroPermissao, c: ItemOculto, comp: Compartilhado = null) =>

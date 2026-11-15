@@ -129,6 +129,7 @@ export type LigacaoDTO = {
   seta: boolean;
   autorId: string;
   oculto: boolean;
+  reveladoSessaoId: string | null;
 };
 
 // O que um cartão de referência mostra. Só vai pra quem pode ler a origem: o servidor
@@ -157,9 +158,13 @@ export type RefSessaoDTO = {
   titulo: string | null;
   ativa: boolean;
   iniciadaEm: string;
+  // Sessão anterior ao sistema: sem data de verdade.
+  retroativa: boolean;
 };
 
 export type ConteudoQuadroDTO = {
+  // Instante (do servidor) em que o conteúdo foi lido: de onde a sincronia continua.
+  agora: string;
   cartoes: CartaoDTO[];
   ligacoes: LigacaoDTO[];
   paginas: RefPaginaDTO[];
@@ -189,4 +194,57 @@ export const TAMANHO_PADRAO: Record<TipoCartao, { largura: number; altura: numbe
   imagem: { largura: 260, altura: 200 },
   moldura: { largura: 520, altura: 340 },
   texto: { largura: 280, altura: 56 },
+};
+
+// Imagem de fundo (o quadro vira mapa) com o tamanho dela em pixels.
+export type FundoQuadro = { url: string; largura: number; altura: number } | null;
+
+// Mudanças desde um instante (o cliente pede de novo ao receber um aviso ou ao voltar pra aba).
+export type MudancasQuadroDTO = {
+  agora: string;
+  cartoes: CartaoDTO[];
+  removidos: string[];
+  ligacoes: LigacaoDTO[];
+  ligacoesRemovidas: string[];
+  paginas: RefPaginaDTO[];
+  notas: RefNotaDTO[];
+  sessoes: RefSessaoDTO[];
+  // O fundo (mapa) do quadro, pra quem está nele ver a troca na hora.
+  fundo: FundoQuadro;
+};
+
+export type ItemLixeiraDTO = {
+  cartao: CartaoDTO;
+  apagadoEm: string;
+  apagadoPor: string | null;
+  venceEm: string;
+  podeRestaurar: boolean;
+};
+
+// Compartilhar um quadro pessoal (por pessoa).
+export type AcessoCompartilhadoDTO = { userId: string; nivel: NivelAcesso };
+
+// Enviar cartões para o quadro da mesa: o que o servidor achou antes de copiar.
+export type PreparoImportacaoDTO = {
+  // Cartões escolhidos que o servidor pode ler e enviar.
+  total: number;
+  // Vão como estão (post-its, imagens, molduras, sessões e referências públicas).
+  comuns: number;
+  // Já estão no quadro da mesa: o cartão novo não nasce, as ligações vão para o que já existe.
+  jaNoQuadro: string[];
+  // Página oculta (só narrador): vai oculta, o narrador revela depois.
+  ocultos: number;
+  // Referência apagada ou que a pessoa não lê: fica de fora.
+  inacessiveis: number;
+  // Privados: o autor escolhe publicar cada um ou deixar de fora.
+  privados: { cartaoId: string; tipo: "pagina" | "nota"; nome: string; podePublicar: boolean }[];
+};
+
+export type ResultadoImportacaoDTO = {
+  destinoId: string;
+  criados: number;
+  reutilizados: number;
+  ligacoes: number;
+  publicados: number;
+  deixadosDeFora: number;
 };

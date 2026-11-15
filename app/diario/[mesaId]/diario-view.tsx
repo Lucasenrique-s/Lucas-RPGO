@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { imagensDeRica, textoPuroRico, type TipoRef } from "@/lib/descricao-rica";
 import {
   TIPOS_FICHA,
+  dataDaSessao,
   rotuloSessao,
   rotuloDia,
   type CalendarioDiarioDTO,
@@ -50,6 +51,8 @@ type Props = {
   // Anotações que os autores marcaram pra aparecer nas páginas da wiki.
   notasWiki?: NotaWikiDTO[];
   sessoes: SessaoDiarioDTO[];
+  // Cor da capa do caderno de quem escreve (#rrggbb).
+  capaCor: string;
   mencoes: MencaoDiarioDTO[];
   relacoes: RelacaoDTO[];
   marcos: MarcoDiarioDTO[];
@@ -98,6 +101,7 @@ export function DiarioView({
   notas,
   notasWiki = [],
   sessoes,
+  capaCor,
   mencoes,
   relacoes,
   marcos,
@@ -534,6 +538,7 @@ export function DiarioView({
           relacoes={relacoes}
           autores={autores}
           participantes={membros}
+          quadros={quadros}
           contexto={contexto}
           refs={refsOpcoes}
           cfg={cfg}
@@ -552,6 +557,7 @@ export function DiarioView({
           mesaId={mesaId}
           meuId={meuId}
           titulo={autores[meuId] ?? "Meu caderno"}
+          capaCor={capaCor}
           fichas={fichas}
           notas={notas}
           sessoes={sessoes}
@@ -604,7 +610,7 @@ export function DiarioView({
                   <b>{sessao ? rotuloSessao(sessao) : s.rotulo}</b>
                 </button>
                 {sessao?.ativa && <span className="diario-ao-vivo">ao vivo</span>}
-                {sessao && <span className="diario-marco-data">{new Date(sessao.iniciadaEm).toLocaleDateString("pt-BR")}</span>}
+                {sessao && dataDaSessao(sessao) && <span className="diario-marco-data">{dataDaSessao(sessao)}</span>}
                 <span className="diario-marco-qtd">
                   {itens.length} {itens.length === 1 ? "item" : "itens"}
                 </span>

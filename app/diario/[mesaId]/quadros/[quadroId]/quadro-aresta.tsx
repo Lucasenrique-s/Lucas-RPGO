@@ -54,6 +54,7 @@ export function BarbanteAresta({ id, source, target, selected, data }: EdgeProps
   const t = 13;
   const seta = `${p2.x},${p2.y} ${p2.x - ux * t - uy * t * 0.5},${p2.y - uy * t + ux * t * 0.5} ${p2.x - ux * t + uy * t * 0.5},${p2.y - uy * t - ux * t * 0.5}`;
 
+  const esmaecida = ctx.ligacaoEsmaecida(id);
   const cor = COR_VAR[l.cor] ?? COR_VAR.cinza;
   const dash = DASH[l.traco];
 
@@ -68,11 +69,11 @@ export function BarbanteAresta({ id, source, target, selected, data }: EdgeProps
         id={id}
         path={caminho}
         interactionWidth={22}
-        style={{ stroke: cor, strokeWidth: selected ? 3.5 : 2.5, strokeDasharray: dash, strokeLinecap: "round", opacity: l.oculto ? 0.55 : 1 }}
+        style={{ stroke: cor, strokeWidth: selected ? 3.5 : 2.5, strokeDasharray: l.oculto ? "3 8" : dash, strokeLinecap: "round", opacity: l.oculto ? 0.55 : 1 }}
       />
       {l.seta && <polygon points={seta} style={{ fill: cor, pointerEvents: "none" }} />}
       <EdgeLabelRenderer>
-        {!selected && l.rotulo && (
+        {!selected && l.rotulo && !esmaecida && (
           <button
             type="button"
             className="qa-rotulo nodrag nopan"
@@ -140,6 +141,18 @@ export function BarbanteAresta({ id, source, target, selected, data }: EdgeProps
                 >
                   <i className="fas fa-arrow-right-long" />
                 </button>
+                {ctx.podeOcultar && (
+                  <button
+                    type="button"
+                    className={`qa-btn${l.oculto ? " qa-btn--on" : ""}`}
+                    title={l.oculto ? "Revelar à mesa (registra a sessão)" : "Ocultar da mesa (só o narrador vê)"}
+                    aria-label={l.oculto ? "Revelar à mesa" : "Ocultar da mesa"}
+                    aria-pressed={l.oculto}
+                    onClick={() => ctx.ocultarLigacao(id, !l.oculto)}
+                  >
+                    <i className={`fas ${l.oculto ? "fa-lock" : "fa-lock-open"}`} />
+                  </button>
+                )}
                 <button type="button" className="qa-btn qa-btn--perigo" title="Apagar ligação" aria-label="Apagar ligação" onClick={() => ctx.apagarLigacao(id)}>
                   <i className="fas fa-trash" />
                 </button>

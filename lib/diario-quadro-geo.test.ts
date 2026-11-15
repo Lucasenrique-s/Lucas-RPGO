@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { acharLugarLivre, ajustarImagem, centroDe, dentroDaMoldura, extrairUrl, limitarGeometria, pareceImagem, pontoNaBorda } from "./diario-quadro-geo.ts";
+import { acharLugarLivre, ajustarImagem, centroDe, deslocamentoParaColar, dentroDaMoldura, extrairUrl, limitarGeometria, pareceImagem, pontoNaBorda } from "./diario-quadro-geo.ts";
 
 const caixa = { x: 0, y: 0, largura: 200, altura: 100 };
 
@@ -74,5 +74,27 @@ describe("acharLugarLivre", () => {
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) ocupados.push({ x: dx * 124, y: dy * 124, largura: 100, altura: 100 });
     const t = acharLugarLivre(r, ocupados);
     assert.equal(Math.max(Math.abs(t.x), Math.abs(t.y)), 248);
+  });
+});
+
+describe("deslocamentoParaColar", () => {
+  it("destino vazio: não desloca", () => {
+    assert.deepEqual(deslocamentoParaColar([{ x: 10, y: 20, largura: 50, altura: 50 }], []), { x: 0, y: 0 });
+  });
+  it("põe o grupo à direita do que existe, com o topo alinhado e a forma preservada", () => {
+    const origem = [
+      { x: 100, y: 200, largura: 80, altura: 40 },
+      { x: 300, y: 260, largura: 80, altura: 40 },
+    ];
+    const destino = [
+      { x: 0, y: 50, largura: 200, altura: 100 },
+      { x: 500, y: -30, largura: 100, altura: 100 },
+    ];
+    const d = deslocamentoParaColar(origem, destino, 100);
+    // direita do destino = 600; origem começa em x=100 → dx = 600 + 100 - 100
+    assert.deepEqual(d, { x: 600, y: -30 - 200 });
+    const novos = origem.map((r) => ({ ...r, x: r.x + d.x, y: r.y + d.y }));
+    assert.equal(novos[1].x - novos[0].x, 200);
+    assert.equal(novos[1].y - novos[0].y, 60);
   });
 });

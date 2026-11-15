@@ -4,12 +4,15 @@
 // (lib/diario-quadro-permissao.ts) e o conteúdo chega pelo canal do quadro (etapa 4).
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { usuarioDaRequest } from "@/lib/supabase/server";
 import { ErroDeUso, executar as executarEm } from "@/lib/acoes";
 import { acessoAoDiario, filtroLeituraDiario, podeLerDiario, type AcessoDiario } from "@/lib/diario";
-import { podeEditarCartao, podeEditarQuadro, type Compartilhado } from "@/lib/diario-quadro-permissao";
+import { avisarQuadro } from "@/lib/diario-aovivo";
+import { dtoCartaoDe, dtoLigacaoDe, listarLixeira, mudancasDesde } from "@/lib/diario-quadros";
+import { podeEditarCartao, podeEditarQuadro, podeOcultarNoQuadro, podeRestaurarCartao, podeVerQuadro, type Compartilhado } from "@/lib/diario-quadro-permissao";
 import { limitarGeometria } from "@/lib/diario-quadro-geo";
 import {
   LIMITES_QUADRO as L,
@@ -26,10 +29,14 @@ import {
   FONTE_MAX,
   FONTE_MIN,
   type Alinhamento,
+  type CartaoDTO,
   type CorCartao,
   type CorTexto,
   type CorLigacao,
   type FormatoCartao,
+  type ItemLixeiraDTO,
+  type LigacaoDTO,
+  type MudancasQuadroDTO,
   type TipoCartao,
   type TracoLigacao,
 } from "@/lib/diario-quadro-tipos";
@@ -60,7 +67,11 @@ async function quadroEditavel(mesaId: string, quadroId: string, acesso: AcessoDi
   return { q, comp };
 }
 
-const tocar = (quadroId: string) => prisma.diarioQuadro.update({ where: { id: quadroId }, data: { atualizadoEm: new Date() } });
+// Marca o quadro como mexido e avisa quem está nele (aviso sem conteúdo, depois da resposta).
+async function tocar(quadroId: string) {
+  await prisma.diarioQuadro.update({ where: { id: quadroId }, data: { atualizadoEm: new Date() } });
+  after(() => avisarQuadro(quadroId));
+}
 
 function textoCartao(v: unknown): string {
   if (v === undefined || v === null) return "";
@@ -100,6 +111,26 @@ function urlImagem(v: unknown): string | null {
 function idValido(v: unknown): string {
   if (typeof v !== "string" || !UUID.test(v)) throw new ErroDeUso("Identificador inválido.");
   return v;
+}
+
+// A sessão em que as coisas nascem e são reveladas: a ativa, ou a mais recente.
+async function sessaoAtual(mesaId: string): Promise<string | null> {
+  const s =
+    (await prisma.sessao.findFirst({ where: { mesaId, encerradaEm: null }, select: { id: true } })) ??
+    (await prisma.sessao.findFirst({ where: { mesaId }, orderBy: { iniciadaEm: "desc" }, select: { id: true } }));
+  return s?.id ?? null;
+}
+
+// Ocultar guarda só o cadeado; revelar guarda em que sessão a mesa passou a ver ("revelado na Sessão N").
+async function dadosDeRevelacao(mesaId: string, oculto: boolean, sessaoId: string | null | undefined) {
+  if (oculto) return { oculto: true, reveladoSessaoId: null, reveladoEm: null };
+  let id: string | null;
+  if (sessaoId) {
+    const s = await prisma.sessao.findFirst({ where: { id: sessaoId, mesaId }, select: { id: true } });
+    if (!s) throw new ErroDeUso("Sessão não encontrada.");
+    id = s.id;
+  } else id = await sessaoAtual(mesaId);
+  return { oculto: false, reveladoSessaoId: id, reveladoEm: new Date() };
 }
 
 // A referência existe nesta mesa e a pessoa pode ler.
@@ -191,6 +222,9 @@ export type MudancaCartao = {
   cor?: CorCartao;
   texto?: string;
   formato?: FormatoCartao;
+  // Só o narrador, no quadro da mesa.
+  oculto?: boolean;
+  reveladoSessaoId?: string | null;
 } & Formato;
 
 export async function atualizarCartoesQuadro(mesaId: string, quadroId: string, mudancas: MudancaCartao[]) {
@@ -221,6 +255,10 @@ export async function atualizarCartoesQuadro(mesaId: string, quadroId: string, m
       if (m.formato !== undefined) {
         if (!ehFormatoCartao(m.formato)) throw new ErroDeUso("Formato inválido.");
         data.formato = m.formato;
+      }
+      if (m.oculto !== undefined) {
+        if (!podeOcultarNoQuadro(acesso, q)) throw new ErroDeUso("Só o narrador oculta e revela no quadro da mesa.");
+        Object.assign(data, await dadosDeRevelacao(mesaId, m.oculto === true, m.reveladoSessaoId));
       }
       if (m.texto !== undefined && !ehTipoReferencia(c.tipo)) data.texto = textoCartao(m.texto);
       ops.push(prisma.diarioCartao.update({ where: { id: c.id }, data }));
@@ -265,6 +303,9 @@ export type DadosLigacao = {
   cor?: CorLigacao;
   traco?: TracoLigacao;
   seta?: boolean;
+  // Só o narrador, no quadro da mesa.
+  oculto?: boolean;
+  reveladoSessaoId?: string | null;
 };
 
 function lerLigacao(d: DadosLigacao) {
@@ -309,7 +350,12 @@ export async function atualizarLigacaoQuadro(mesaId: string, quadroId: string, i
     const { q, comp } = await quadroEditavel(mesaId, quadroId, acesso);
     const l = await prisma.diarioLigacao.findFirst({ where: { id, quadroId, apagadoEm: null } });
     if (!l || !podeEditarCartao(acesso, q, l, comp)) throw new ErroDeUso("Ligação não encontrada.");
-    await prisma.diarioLigacao.update({ where: { id }, data: lerLigacao(dados) });
+    let revelacao = {};
+    if (dados.oculto !== undefined) {
+      if (!podeOcultarNoQuadro(acesso, q)) throw new ErroDeUso("Só o narrador oculta e revela no quadro da mesa.");
+      revelacao = await dadosDeRevelacao(mesaId, dados.oculto === true, dados.reveladoSessaoId);
+    }
+    await prisma.diarioLigacao.update({ where: { id }, data: { ...lerLigacao(dados), ...revelacao } });
     await tocar(quadroId);
   });
 }
@@ -322,5 +368,84 @@ export async function apagarLigacaoQuadro(mesaId: string, quadroId: string, id: 
     if (!l || !podeEditarCartao(acesso, q, l, comp)) throw new ErroDeUso("Ligação não encontrada.");
     await prisma.diarioLigacao.update({ where: { id }, data: { apagadoEm: new Date() } });
     await tocar(quadroId);
+  });
+}
+
+// ─── Sincronia, lixeira e restaurar ────────────────────────────
+
+// O quadro, só pra ler (quem pode ver; o aviso e a lixeira não pedem poder editar).
+async function quadroLegivel(mesaId: string, quadroId: string, acesso: AcessoDiario) {
+  const q = await prisma.diarioQuadro.findFirst({
+    where: { id: quadroId, mesaId },
+    include: { acessos: { where: { userId: acesso.userId } } },
+  });
+  if (!q) throw new ErroDeUso("Quadro não encontrado.");
+  const nivel = q.acessos[0]?.nivel;
+  const comp: Compartilhado = ehNivelAcesso(nivel) ? nivel : null;
+  if (!podeVerQuadro(acesso, q, comp)) throw new ErroDeUso("Quadro não encontrado.");
+  return { q, comp };
+}
+
+// O que mudou no quadro desde `desde` (ISO). Chamado ao receber um aviso e ao voltar pra aba.
+export async function lerMudancasQuadro(mesaId: string, quadroId: string, desde: string) {
+  return executar<{ mudancas: MudancasQuadroDTO }>(async () => {
+    const acesso = await autorizar(mesaId);
+    await quadroLegivel(mesaId, quadroId, acesso);
+    const d = new Date(desde);
+    if (Number.isNaN(d.getTime())) throw new ErroDeUso("Data inválida.");
+    return { mudancas: await mudancasDesde(mesaId, quadroId, acesso, d) };
+  });
+}
+
+export async function listarLixeiraQuadro(mesaId: string, quadroId: string) {
+  return executar<{ itens: ItemLixeiraDTO[] }>(async () => {
+    const acesso = await autorizar(mesaId);
+    const { q, comp } = await quadroLegivel(mesaId, quadroId, acesso);
+    return { itens: await listarLixeira(quadroId, acesso, q, comp) };
+  });
+}
+
+// Tira da lixeira (a lixeira e o Ctrl+Z). As ligações que caíram junto com o cartão voltam com ele.
+export async function restaurarCartoesQuadro(mesaId: string, quadroId: string, ids: string[], ligacaoIds: string[] = []) {
+  return executar<{ cartoes: CartaoDTO[]; ligacoes: LigacaoDTO[] }>(async () => {
+    const acesso = await autorizar(mesaId);
+    const { q, comp } = await quadroEditavel(mesaId, quadroId, acesso);
+    if (!Array.isArray(ids) || ids.length > MAX_POR_CHAMADA) throw new ErroDeUso("Cartões demais de uma vez.");
+    const alvo = await prisma.diarioCartao.findMany({ where: { quadroId, apagadoEm: { not: null }, id: { in: ids.filter((i) => typeof i === "string") } } });
+    const permitidos = alvo.filter((c) => podeRestaurarCartao(acesso, q, c, comp));
+
+    const ativos = await prisma.diarioCartao.count({ where: { quadroId, apagadoEm: null } });
+    if (ativos + permitidos.length > L.cartoes) throw new ErroDeUso(`O quadro chegou a ${L.cartoes} cartões. Apague alguns para restaurar.`);
+
+    const apagadoEm = new Map(permitidos.map((c) => [c.id, (c.apagadoEm as Date).getTime()]));
+    const idsPermitidos = permitidos.map((c) => c.id);
+    if (idsPermitidos.length > 0) {
+      await prisma.diarioCartao.updateMany({ where: { id: { in: idsPermitidos } }, data: { apagadoEm: null, apagadoPor: null } });
+    }
+
+    // Ligações: as que caíram junto (mesmo instante) e as pedidas, desde que as duas pontas estejam no quadro.
+    const candidatas = await prisma.diarioLigacao.findMany({
+      where: {
+        quadroId,
+        apagadoEm: { not: null },
+        OR: [{ deId: { in: idsPermitidos } }, { paraId: { in: idsPermitidos } }, { id: { in: ligacaoIds.filter((i) => typeof i === "string") } }],
+      },
+    });
+    const pontasAtivas = new Set(
+      (await prisma.diarioCartao.findMany({ where: { quadroId, apagadoEm: null, id: { in: [...new Set(candidatas.flatMap((l) => [l.deId, l.paraId]))] } }, select: { id: true } })).map((c) => c.id),
+    );
+    const pedidas = new Set(ligacaoIds);
+    const voltam = candidatas.filter((l) => {
+      if (!pontasAtivas.has(l.deId) || !pontasAtivas.has(l.paraId)) return false;
+      const junto = [l.deId, l.paraId].some((p) => apagadoEm.get(p) === (l.apagadoEm as Date).getTime());
+      return junto || pedidas.has(l.id);
+    });
+    if (voltam.length > 0) await prisma.diarioLigacao.updateMany({ where: { id: { in: voltam.map((l) => l.id) } }, data: { apagadoEm: null } });
+
+    await tocar(quadroId);
+    revalidatePath(`/diario/${mesaId}`);
+    const cartoes = await prisma.diarioCartao.findMany({ where: { id: { in: idsPermitidos } } });
+    const ligacoes = voltam.length ? await prisma.diarioLigacao.findMany({ where: { id: { in: voltam.map((l) => l.id) } } }) : [];
+    return { cartoes: cartoes.map(dtoCartaoDe), ligacoes: ligacoes.map(dtoLigacaoDe) };
   });
 }
